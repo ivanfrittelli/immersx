@@ -476,18 +476,22 @@ namespace ImmersX
           mass_matrix.clear();
           newmark_matrix.clear();
           damping_matrix.clear();
-          newmark_matrix.reinit(owned_dofs[0],
-                                owned_dofs[0],
-                                dsp,
-                                mpi_communicator);
-          mass_matrix.reinit(owned_dofs[0],
-                             owned_dofs[0],
-                             dsp,
-                             mpi_communicator);
-          damping_matrix.reinit(owned_dofs[0],
-                                owned_dofs[0],
-                                dsp,
-                                mpi_communicator);
+          //re-use dsp from stiffness matrix
+          newmark_matrix.reinit(stiffness_matrix);
+          mass_matrix.reinit(stiffness_matrix);
+          damping_matrix.reinit(stiffness_matrix);
+          // newmark_matrix.reinit(owned_dofs[0],
+          //                       owned_dofs[0],
+          //                       dsp,
+          //                       mpi_communicator);
+          // mass_matrix.reinit(owned_dofs[0],
+          //                    owned_dofs[0],
+          //                    dsp,
+          //                    mpi_communicator);
+          // damping_matrix.reinit(owned_dofs[0],
+          //                       owned_dofs[0],
+          //                       dsp,
+          //                       mpi_communicator);
         }
     }
 
@@ -858,7 +862,8 @@ namespace ImmersX
           VectorTools::interpolate(dh, rbm, rigid_body_modes[i]);
         }
 #endif
-
+      //Only make prec_A for static and quasi-static runs
+      if (par.time_mode != TimeMode::Dynamic)
       {
         auto parameter_list_A = amg_parameter_list;
         if (!uses_tensor_product_coupling())
@@ -873,20 +878,21 @@ namespace ImmersX
         prec_A.initialize(stiffness_matrix, parameter_list_A);
       }
 
-      if (par.time_mode == TimeMode::Dynamic)
-        {
-          auto parameter_list_newmark = amg_parameter_list;
-          std::unique_ptr<Epetra_MultiVector> ptr_operator_modes;
-          UtilitiesAL::set_null_space<spacedim, VectorType>(
-            parameter_list_newmark,
-            ptr_operator_modes,
-            stiffness_matrix.trilinos_matrix(),
-            rigid_body_modes);
-          prec_newmark.initialize(newmark_matrix, parameter_list_newmark);
+      //only make prec_C and prec_newmark once when needed
+      // if (par.time_mode == TimeMode::Dynamic)
+      //   {
+      //     auto parameter_list_newmark = amg_parameter_list;
+      //     std::unique_ptr<Epetra_MultiVector> ptr_operator_modes;
+      //     UtilitiesAL::set_null_space<spacedim, VectorType>(
+      //       parameter_list_newmark,
+      //       ptr_operator_modes,
+      //       stiffness_matrix.trilinos_matrix(),
+      //       rigid_body_modes);
+      //     prec_newmark.initialize(newmark_matrix, parameter_list_newmark);
 
-          auto parameter_list_C = amg_parameter_list;
-          prec_C.initialize(mass_matrix, parameter_list_C);
-        }
+      //     auto parameter_list_C = amg_parameter_list;
+      //     prec_C.initialize(mass_matrix, parameter_list_C);
+      //   }
     }
   }
 
@@ -1871,7 +1877,7 @@ namespace ImmersX
     Vector<float> subdomain(tria->n_active_cells());
     for (unsigned int i = 0; i < subdomain.size(); ++i)
       subdomain(i) = tria->locally_owned_subdomain();
-    data_out.add_data_vector(subdomain, "subdomain");
+    // data_out.add_data_vector(subdomain, "subdomain");
 
     Vector<double> material_ids(tria->n_active_cells());
     {
@@ -1883,7 +1889,14 @@ namespace ImmersX
         }
     }
 
-    data_out.add_data_vector(material_ids, "material_id");
+    // data_out.add_data_vector(material_ids, "material_id");
+
+    //output material_id and subdomain only in the first time step
+    if (time_step == 0)
+    {
+      data_out.add_data_vector(subdomain, "subdomain");
+      data_out.add_data_vector(material_ids, "material_id");
+    }
 
     data_out.build_patches();
     std::ostringstream filename;
@@ -2509,6 +2522,19 @@ namespace ImmersX
         // Initialize acceleration consistently at t0:
         // C a0 = f0 - D v0 - A u0 (plus inclusion forcing if present).
         compute_system_rhs(current_time);
+        // Build the C matrix AMG only for the initial acceleration solve
+        {
+          Teuchos::ParameterList parameter_list_C;
+          parameter_list_C.set("smoother: type", "Chebyshev");
+          parameter_list_C.set("smoother: sweeps", 2);
+          parameter_list_C.set("smoother: pre or post", "both");
+          parameter_list_C.set("coarse: type", "Amesos-KLU");
+          parameter_list_C.set("coarse: max size", 2000);
+          parameter_list_C.set("aggregation: threshold", 0.02);
+
+          prec_C.clear();
+          prec_C.initialize(mass_matrix, parameter_list_C);
+        }
         {
           const auto A = linear_operator<LA::MPI::Vector>(stiffness_matrix);
           const auto D = linear_operator<LA::MPI::Vector>(damping_matrix);
@@ -2551,6 +2577,57 @@ namespace ImmersX
         }
 
         locally_relevant_solution = solution;
+        // mass_matrix and prec_C are no longer used after a0.
+        prec_C.clear();
+        mass_matrix.clear();
+        //make Prec_newmark with rbm
+        {
+                    Teuchos::ParameterList parameter_list_newmark;
+                    parameter_list_newmark.set("smoother: type", "Chebyshev");
+                    parameter_list_newmark.set("smoother: sweeps", 2);
+                    parameter_list_newmark.set("smoother: pre or post", "both");
+                    parameter_list_newmark.set("coarse: type", "Amesos-KLU");
+                    parameter_list_newmark.set("coarse: max size", 2000);
+                    parameter_list_newmark.set("aggregation: threshold", 0.02);
+
+            #if DEAL_II_VERSION_GTE(9, 7, 0)
+                    using RigidBodyVectorType = std::vector<double>;
+
+                    MappingQ1<spacedim> mapping;
+                    std::vector<std::vector<double>> rigid_body_modes =
+                      DoFTools::extract_rigid_body_modes(mapping, dh);
+            #else
+                    using RigidBodyVectorType = LinearAlgebra::distributed::Vector<double>;
+
+                    std::vector<RigidBodyVectorType> rigid_body_modes(
+                      spacedim == 3 ? 6 : 3);
+
+                    const auto locally_relevant_dofs =
+                      DoFTools::extract_locally_relevant_dofs(dh);
+
+                    for (unsigned int i = 0; i < rigid_body_modes.size(); ++i)
+                      {
+                        rigid_body_modes[i].reinit(dh.locally_owned_dofs(),
+                                                  locally_relevant_dofs,
+                                                  mpi_communicator);
+
+                        RigidBodyMotion<spacedim> rbm(i);
+                        VectorTools::interpolate(dh, rbm, rigid_body_modes[i]);
+                      }
+            #endif
+
+                    std::unique_ptr<Epetra_MultiVector> ptr_operator_modes;
+
+                    UtilitiesAL::set_null_space<spacedim, RigidBodyVectorType>(
+                      parameter_list_newmark,
+                      ptr_operator_modes,
+                      newmark_matrix.trilinos_matrix(),
+                      rigid_body_modes);
+
+                    prec_newmark.clear();
+                    prec_newmark.initialize(newmark_matrix, parameter_list_newmark);
+        }
+
 
         for (time_step = 0, current_time = par.time_parameters.initial_time;
              current_time < par.time_parameters.final_time;
@@ -2579,6 +2656,23 @@ namespace ImmersX
         if (pcout.is_active())
           par.convergence_table.output_table(pcout.get_stream());
       }
+      //Output RAM usage 
+      dealii::Utilities::System::MemoryStats memory;
+      dealii::Utilities::System::get_memory_stats(memory);
+
+      const double max_vmrss  = Utilities::MPI::max(memory.VmRSS  / 1024.0, mpi_communicator);
+      const double max_vmhwm  = Utilities::MPI::max(memory.VmHWM  / 1024.0, mpi_communicator);
+      const double max_vmsize = Utilities::MPI::max(memory.VmSize / 1024.0, mpi_communicator);
+      const double max_vmpeak = Utilities::MPI::max(memory.VmPeak / 1024.0, mpi_communicator);
+
+      const double total_vmrss = Utilities::MPI::sum(memory.VmRSS / 1024.0, mpi_communicator);
+
+      pcout << "\nMemory usage across MPI ranks:\n"
+            << "  Max resident RAM (VmRSS):     " << max_vmrss  << " MiB\n"
+            << "  Max peak resident RAM (VmHWM):" << max_vmhwm  << " MiB\n"
+            << "  Max virtual memory (VmSize):  " << max_vmsize << " MiB\n"
+            << "  Max peak virtual memory:      " << max_vmpeak << " MiB\n"
+            << "  Sum of resident RAM (total):  " << total_vmrss << " MiB\n";
   }
 
 
