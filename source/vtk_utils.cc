@@ -102,6 +102,7 @@ namespace ImmersX
           {
             auto reader = vtkSmartPointer<vtkUnstructuredGridReader>::New();
             reader->SetFileName(filename.c_str());
+            reader->ReadAllScalarsOn();
             reader->Update();
             return copy_output(reader->GetOutput());
           }
@@ -448,6 +449,7 @@ namespace ImmersX
     {
       auto reader = vtkSmartPointer<vtkUnstructuredGridReader>::New();
       reader->SetFileName(vtk_filename.c_str());
+      reader->ReadAllScalarsOn();
       reader->Update();
       vtkUnstructuredGrid *grid = reader->GetOutput();
       AssertThrow(grid, ExcMessage("Failed to read VTK file: " + vtk_filename));
@@ -471,6 +473,7 @@ namespace ImmersX
     {
       auto reader = vtkSmartPointer<vtkUnstructuredGridReader>::New();
       reader->SetFileName(vtk_filename.c_str());
+      reader->ReadAllScalarsOn();
       reader->Update();
       vtkUnstructuredGrid *grid = reader->GetOutput();
       AssertThrow(grid, ExcMessage("Failed to read VTK file: " + vtk_filename));
@@ -492,6 +495,7 @@ namespace ImmersX
     {
       auto reader = vtkSmartPointer<vtkUnstructuredGridReader>::New();
       reader->SetFileName(vtk_filename.c_str());
+      reader->ReadAllScalarsOn();
       reader->Update();
       vtkUnstructuredGrid *grid = reader->GetOutput();
       AssertThrow(grid, ExcMessage("Failed to read VTK file: " + vtk_filename));
@@ -546,6 +550,7 @@ namespace ImmersX
     {
       auto reader = vtkSmartPointer<vtkUnstructuredGridReader>::New();
       reader->SetFileName(vtk_filename.c_str());
+      reader->ReadAllScalarsOn();
       reader->Update();
       vtkUnstructuredGrid *grid = reader->GetOutput();
       AssertThrow(grid, ExcMessage("Failed to read VTK file: " + vtk_filename));
@@ -601,6 +606,7 @@ namespace ImmersX
     {
       auto reader = vtkSmartPointer<vtkUnstructuredGridReader>::New();
       reader->SetFileName(vtk_filename.c_str());
+      reader->ReadAllScalarsOn();
       reader->Update();
       vtkUnstructuredGrid *grid = reader->GetOutput();
       AssertThrow(grid, ExcMessage("Failed to read VTK file: " + vtk_filename));
