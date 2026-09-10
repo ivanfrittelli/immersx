@@ -476,7 +476,7 @@ namespace ImmersX
           mass_matrix.clear();
           newmark_matrix.clear();
           damping_matrix.clear();
-          //re-use dsp from stiffness matrix
+          // re-use dsp from stiffness matrix
           newmark_matrix.reinit(stiffness_matrix);
           mass_matrix.reinit(stiffness_matrix);
           damping_matrix.reinit(stiffness_matrix);
@@ -862,23 +862,23 @@ namespace ImmersX
           VectorTools::interpolate(dh, rbm, rigid_body_modes[i]);
         }
 #endif
-      //Only make prec_A for static and quasi-static runs
+      // Only make prec_A for static and quasi-static runs
       if (par.time_mode != TimeMode::Dynamic)
-      {
-        auto parameter_list_A = amg_parameter_list;
-        if (!uses_tensor_product_coupling())
-          {
-            std::unique_ptr<Epetra_MultiVector> ptr_operator_modes;
-            UtilitiesAL::set_null_space<spacedim, VectorType>(
-              parameter_list_A,
-              ptr_operator_modes,
-              stiffness_matrix.trilinos_matrix(),
-              rigid_body_modes);
-          }
-        prec_A.initialize(stiffness_matrix, parameter_list_A);
-      }
+        {
+          auto parameter_list_A = amg_parameter_list;
+          if (!uses_tensor_product_coupling())
+            {
+              std::unique_ptr<Epetra_MultiVector> ptr_operator_modes;
+              UtilitiesAL::set_null_space<spacedim, VectorType>(
+                parameter_list_A,
+                ptr_operator_modes,
+                stiffness_matrix.trilinos_matrix(),
+                rigid_body_modes);
+            }
+          prec_A.initialize(stiffness_matrix, parameter_list_A);
+        }
 
-      //only make prec_C and prec_newmark once when needed
+      // only make prec_C and prec_newmark once when needed
       // if (par.time_mode == TimeMode::Dynamic)
       //   {
       //     auto parameter_list_newmark = amg_parameter_list;
@@ -1891,12 +1891,12 @@ namespace ImmersX
 
     // data_out.add_data_vector(material_ids, "material_id");
 
-    //output material_id and subdomain only in the first time step
+    // output material_id and subdomain only in the first time step
     if (time_step == 0)
-    {
-      data_out.add_data_vector(subdomain, "subdomain");
-      data_out.add_data_vector(material_ids, "material_id");
-    }
+      {
+        data_out.add_data_vector(subdomain, "subdomain");
+        data_out.add_data_vector(material_ids, "material_id");
+      }
 
     data_out.build_patches();
     std::ostringstream filename;
@@ -2580,52 +2580,53 @@ namespace ImmersX
         // mass_matrix and prec_C are no longer used after a0.
         prec_C.clear();
         mass_matrix.clear();
-        //make Prec_newmark with rbm
+        // make Prec_newmark with rbm
         {
-                    Teuchos::ParameterList parameter_list_newmark;
-                    parameter_list_newmark.set("smoother: type", "Chebyshev");
-                    parameter_list_newmark.set("smoother: sweeps", 2);
-                    parameter_list_newmark.set("smoother: pre or post", "both");
-                    parameter_list_newmark.set("coarse: type", "Amesos-KLU");
-                    parameter_list_newmark.set("coarse: max size", 2000);
-                    parameter_list_newmark.set("aggregation: threshold", 0.02);
+          Teuchos::ParameterList parameter_list_newmark;
+          parameter_list_newmark.set("smoother: type", "Chebyshev");
+          parameter_list_newmark.set("smoother: sweeps", 2);
+          parameter_list_newmark.set("smoother: pre or post", "both");
+          parameter_list_newmark.set("coarse: type", "Amesos-KLU");
+          parameter_list_newmark.set("coarse: max size", 2000);
+          parameter_list_newmark.set("aggregation: threshold", 0.02);
 
-            #if DEAL_II_VERSION_GTE(9, 7, 0)
-                    using RigidBodyVectorType = std::vector<double>;
+#if DEAL_II_VERSION_GTE(9, 7, 0)
+          using RigidBodyVectorType = std::vector<double>;
 
-                    MappingQ1<spacedim> mapping;
-                    std::vector<std::vector<double>> rigid_body_modes =
-                      DoFTools::extract_rigid_body_modes(mapping, dh);
-            #else
-                    using RigidBodyVectorType = LinearAlgebra::distributed::Vector<double>;
+          MappingQ1<spacedim>              mapping;
+          std::vector<std::vector<double>> rigid_body_modes =
+            DoFTools::extract_rigid_body_modes(mapping, dh);
+#else
+          using RigidBodyVectorType =
+            LinearAlgebra::distributed::Vector<double>;
 
-                    std::vector<RigidBodyVectorType> rigid_body_modes(
-                      spacedim == 3 ? 6 : 3);
+          std::vector<RigidBodyVectorType> rigid_body_modes(spacedim == 3 ? 6 :
+                                                                            3);
 
-                    const auto locally_relevant_dofs =
-                      DoFTools::extract_locally_relevant_dofs(dh);
+          const auto locally_relevant_dofs =
+            DoFTools::extract_locally_relevant_dofs(dh);
 
-                    for (unsigned int i = 0; i < rigid_body_modes.size(); ++i)
-                      {
-                        rigid_body_modes[i].reinit(dh.locally_owned_dofs(),
-                                                  locally_relevant_dofs,
-                                                  mpi_communicator);
+          for (unsigned int i = 0; i < rigid_body_modes.size(); ++i)
+            {
+              rigid_body_modes[i].reinit(dh.locally_owned_dofs(),
+                                         locally_relevant_dofs,
+                                         mpi_communicator);
 
-                        RigidBodyMotion<spacedim> rbm(i);
-                        VectorTools::interpolate(dh, rbm, rigid_body_modes[i]);
-                      }
-            #endif
+              RigidBodyMotion<spacedim> rbm(i);
+              VectorTools::interpolate(dh, rbm, rigid_body_modes[i]);
+            }
+#endif
 
-                    std::unique_ptr<Epetra_MultiVector> ptr_operator_modes;
+          std::unique_ptr<Epetra_MultiVector> ptr_operator_modes;
 
-                    UtilitiesAL::set_null_space<spacedim, RigidBodyVectorType>(
-                      parameter_list_newmark,
-                      ptr_operator_modes,
-                      newmark_matrix.trilinos_matrix(),
-                      rigid_body_modes);
+          UtilitiesAL::set_null_space<spacedim, RigidBodyVectorType>(
+            parameter_list_newmark,
+            ptr_operator_modes,
+            newmark_matrix.trilinos_matrix(),
+            rigid_body_modes);
 
-                    prec_newmark.clear();
-                    prec_newmark.initialize(newmark_matrix, parameter_list_newmark);
+          prec_newmark.clear();
+          prec_newmark.initialize(newmark_matrix, parameter_list_newmark);
         }
 
 
@@ -2656,23 +2657,28 @@ namespace ImmersX
         if (pcout.is_active())
           par.convergence_table.output_table(pcout.get_stream());
       }
-      //Output RAM usage 
-      dealii::Utilities::System::MemoryStats memory;
-      dealii::Utilities::System::get_memory_stats(memory);
+    // Output RAM usage
+    dealii::Utilities::System::MemoryStats memory;
+    dealii::Utilities::System::get_memory_stats(memory);
 
-      const double max_vmrss  = Utilities::MPI::max(memory.VmRSS  / 1024.0, mpi_communicator);
-      const double max_vmhwm  = Utilities::MPI::max(memory.VmHWM  / 1024.0, mpi_communicator);
-      const double max_vmsize = Utilities::MPI::max(memory.VmSize / 1024.0, mpi_communicator);
-      const double max_vmpeak = Utilities::MPI::max(memory.VmPeak / 1024.0, mpi_communicator);
+    const double max_vmrss =
+      Utilities::MPI::max(memory.VmRSS / 1024.0, mpi_communicator);
+    const double max_vmhwm =
+      Utilities::MPI::max(memory.VmHWM / 1024.0, mpi_communicator);
+    const double max_vmsize =
+      Utilities::MPI::max(memory.VmSize / 1024.0, mpi_communicator);
+    const double max_vmpeak =
+      Utilities::MPI::max(memory.VmPeak / 1024.0, mpi_communicator);
 
-      const double total_vmrss = Utilities::MPI::sum(memory.VmRSS / 1024.0, mpi_communicator);
+    const double total_vmrss =
+      Utilities::MPI::sum(memory.VmRSS / 1024.0, mpi_communicator);
 
-      pcout << "\nMemory usage across MPI ranks:\n"
-            << "  Max resident RAM (VmRSS):     " << max_vmrss  << " MiB\n"
-            << "  Max peak resident RAM (VmHWM):" << max_vmhwm  << " MiB\n"
-            << "  Max virtual memory (VmSize):  " << max_vmsize << " MiB\n"
-            << "  Max peak virtual memory:      " << max_vmpeak << " MiB\n"
-            << "  Sum of resident RAM (total):  " << total_vmrss << " MiB\n";
+    pcout << "\nMemory usage across MPI ranks:\n"
+          << "  Max resident RAM (VmRSS):     " << max_vmrss << " MiB\n"
+          << "  Max peak resident RAM (VmHWM):" << max_vmhwm << " MiB\n"
+          << "  Max virtual memory (VmSize):  " << max_vmsize << " MiB\n"
+          << "  Max peak virtual memory:      " << max_vmpeak << " MiB\n"
+          << "  Sum of resident RAM (total):  " << total_vmrss << " MiB\n";
   }
 
 
