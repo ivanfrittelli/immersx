@@ -1,4 +1,10 @@
 INCLUDE_DIRECTORIES(${D2K_INCLUDE_DIRS})
+
+add_compile_options(
+  $<$<CXX_COMPILER_ID:AppleClang>:-Wno-cpp>
+  $<$<CXX_COMPILER_ID:Clang>:-Wno-cpp>
+  $<$<CXX_COMPILER_ID:GNU>:-Wno-cpp>)
+
 DEAL_II_PICKUP_TESTS()
 
 # Deal.II regression tests use the same primary categories and quick policy as
