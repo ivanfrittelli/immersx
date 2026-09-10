@@ -18,6 +18,8 @@
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/tria.h>
 
+#include <deal.II/numerics/data_out.h>
+
 #include <gtest/gtest.h>
 #include <immersx/core/constraint.h>
 #include <immersx/core/fe_space.h>
@@ -26,10 +28,50 @@
 #include <immersx/physics/poisson_residual.h>
 
 #include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <string>
 #include <vector>
+
+#include "test_paths.h"
 
 using namespace ImmersX;
 using namespace dealii;
+
+namespace
+{
+  bool
+  output_has_field(const std::filesystem::path &directory,
+                   const std::string           &name)
+  {
+    for (const auto &entry : std::filesystem::directory_iterator(directory))
+      if (entry.path().extension() == ".vtu" ||
+          entry.path().extension() == ".pvtu")
+        {
+          std::ifstream     input(entry.path());
+          const std::string contents((std::istreambuf_iterator<char>(input)),
+                                     std::istreambuf_iterator<char>());
+          if (contents.find("Name=\"" + name + "\"") != std::string::npos)
+            return true;
+        }
+    return false;
+  }
+
+  void
+  output_multiplier(const std::filesystem::path  &directory,
+                    const std::string            &name,
+                    const DoFHandler<1, 2>       &dof_handler,
+                    const ImmersXLA::MPI::Vector &values)
+  {
+    std::filesystem::create_directories(directory);
+    DataOut<1, 2> data_out;
+    data_out.attach_dof_handler(dof_handler);
+    data_out.add_data_vector(values, name, DataOut<1, 2>::type_dof_data);
+    data_out.build_patches();
+    data_out.write_vtu_in_parallel((directory / (name + ".vtu")).string(),
+                                   MPI_COMM_WORLD);
+  }
+} // namespace
 
 
 
@@ -67,6 +109,10 @@ TEST(PrescribedPoisson, MPI_UnifiedConstraintReplacement) // NOLINT
     end
   )");
 
+  const auto output_directory =
+    TestPaths::output_directory("application-roadmap/p2-g2");
+  bulk_parameters.output_directory = output_directory;
+  bulk_parameters.output_name      = "p2-g2";
   PoissonSolver<2> bulk_problem(bulk_parameters);
   bulk_problem.make_grid();
   bulk_problem.setup_fe();
@@ -136,6 +182,15 @@ TEST(PrescribedPoisson, MPI_UnifiedConstraintReplacement) // NOLINT
   EXPECT_GT(adapter.field(state, bulk.fields().solution).l2_norm(), 1.e-12);
   EXPECT_LT(bulk_residual.l2_norm(), 1.e-8);
   EXPECT_LT(constraint_residual.l2_norm(), 1.e-8);
+
+  bulk_problem.set_solution(adapter.field(state, bulk.fields().solution));
+  bulk_problem.output_results();
+  output_multiplier(output_directory,
+                    "multiplier",
+                    line_dh,
+                    adapter.field(state, coupling.fields().multiplier));
+  EXPECT_TRUE(output_has_field(output_directory, "solution"));
+  EXPECT_TRUE(output_has_field(output_directory, "multiplier"));
 }
 
 
