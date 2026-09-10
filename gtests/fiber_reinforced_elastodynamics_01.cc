@@ -114,8 +114,8 @@ namespace
             set Initial refinement = 1
             set Dirichlet boundary ids =
             subsection Grid generation
-              set Grid generator           = subdivided_hyper_rectangle
-              set Grid generator arguments = 3, 1: -0.6, -0.1: 0.6, 0.1: true
+              set Grid generator           = hyper_cube
+              set Grid generator arguments = -0.6: 0.6: false
             end
             subsection Material
               set Density     = 2.0
@@ -206,17 +206,17 @@ namespace
 
   void
   assemble_constant_multiplier_pairing(
-    const DoFHandler<2>             &multiplier_dh,
-    const Mapping<2>                &mapping,
+    const DoFHandler<1, 2>          &multiplier_dh,
+    const Mapping<1, 2>             &mapping,
     const AffineConstraints<double> &constraints,
     const Tensor<1, 2>              &constant,
     LA::MPI::Vector                 &result)
   {
-    const QGauss<2> quadrature(multiplier_dh.get_fe().degree + 1);
-    FEValues<2>     fe_values(mapping,
-                          multiplier_dh.get_fe(),
-                          quadrature,
-                          update_values | update_JxW_values);
+    const QGauss<1> quadrature(multiplier_dh.get_fe().degree + 1);
+    FEValues<1, 2>  fe_values(mapping,
+                             multiplier_dh.get_fe(),
+                             quadrature,
+                             update_values | update_JxW_values);
     std::vector<types::global_dof_index> indices(
       multiplier_dh.get_fe().n_dofs_per_cell());
     Vector<double> local(indices.size());
@@ -309,7 +309,7 @@ TEST(FiberReinforcedElastodynamicsValidation, MPI_FiveFieldFiberIDA)
   FiberReinforcedElastodynamics<2> driver(parameters);
   driver.setup();
 
-  DoFHandler<2> multiplier_dh(
+  DoFHandler<1, 2> multiplier_dh(
     driver.fiber_problem().dof_handler().get_triangulation());
   multiplier_dh.distribute_dofs(driver.fiber_problem().fe());
   const auto multiplier_owned = multiplier_dh.locally_owned_dofs();
@@ -658,14 +658,14 @@ TEST(FiberReinforcedElastodynamicsValidation, MPI_FiveFieldFiberIDA)
   const std::filesystem::path multiplier_output =
     TestPaths::output_directory("fiber-vector-multiplier");
   std::filesystem::create_directories(multiplier_output);
-  DataOut<2> data_out;
+  DataOut<1, 2> data_out;
   data_out.attach_dof_handler(multiplier_dh);
   const std::vector<std::string> names(2, "lagrange_multiplier");
   const std::vector<DataComponentInterpretation::DataComponentInterpretation>
     interpretation(2, DataComponentInterpretation::component_is_part_of_vector);
   data_out.add_data_vector(ida.field(state, coupling.fields().multiplier),
                            names,
-                           DataOut<2>::type_dof_data,
+                           DataOut<1, 2>::type_dof_data,
                            interpretation);
   data_out.build_patches(driver.fiber_problem().mapping());
   data_out.write_vtu_in_parallel(
@@ -734,8 +734,8 @@ TEST(FiberReinforcedElastodynamicsValidation, ThreeDimensionalSmoke)
       end
       subsection Fiber Elastodynamics
         subsection Grid generation
-          set Grid generator           = subdivided_hyper_rectangle
-          set Grid generator arguments = 2, 1, 1: -0.6, -0.1, -0.1: 0.6, 0.1, 0.1: true
+          set Grid generator           = hyper_cube
+          set Grid generator arguments = -0.6: 0.6: false
         end
       end
     end

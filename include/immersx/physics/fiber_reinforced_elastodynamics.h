@@ -48,8 +48,8 @@ namespace ImmersX
 
     TimeParameters time_parameters;
 
-    ElastodynamicsParameters<dim> matrix_parameters;
-    ElastodynamicsParameters<dim> fiber_parameters;
+    ElastodynamicsParameters<dim, dim> matrix_parameters;
+    ElastodynamicsParameters<1, dim>   fiber_parameters;
 
     std::string output_directory = "./output/fiber_reinforced_elastodynamics";
     std::string multiplier_output_name = "velocity_multiplier";
@@ -76,23 +76,24 @@ namespace ImmersX
 
 
   /**
-   * Standalone full-order coupled driver for a matrix and an excess fiber.
+   * Standalone coupled driver for a matrix and an embedded excess fiber.
    *
-   * Both Problems are `ElastodynamicsSolver<dim, dim>` objects on independent
-   * full-dimensional meshes.  The fiber mesh is geometrically embedded in the
-   * matrix mesh, but it is not a reduced `<1,3>` representation.  The driver
-   * owns the coupled time loop. With SUNDIALS enabled, it uses the public IDA
-   * execution adapter; without SUNDIALS, it uses the explicit
-   * Schur-complement backward-Euler path.
+   * The matrix is an `ElastodynamicsSolver<dim, dim>` and the fiber is an
+   * independently meshed `ElastodynamicsSolver<1, dim>`. The driver owns the
+   * coupled time loop. With SUNDIALS enabled, it uses the public IDA execution
+   * adapter; without SUNDIALS, it uses the explicit Schur-complement
+   * backward-Euler path.
    */
   template <int dim>
   class FiberReinforcedElastodynamics
   {
   public:
-    using Parameters = FiberReinforcedElastodynamicsParameters<dim>;
-    using Problem    = ElastodynamicsSolver<dim, dim>;
-    using VectorType = typename Problem::VectorType;
-    using MatrixType = typename Problem::MatrixType;
+    using Parameters    = FiberReinforcedElastodynamicsParameters<dim>;
+    using MatrixProblem = ElastodynamicsSolver<dim, dim>;
+    using FiberProblem  = ElastodynamicsSolver<1, dim>;
+    using Problem       = MatrixProblem;
+    using VectorType    = typename MatrixProblem::VectorType;
+    using MatrixType    = typename MatrixProblem::MatrixType;
 #ifdef DEAL_II_WITH_SUNDIALS
     using GlobalVectorType = ImmersXLA::MPI::BlockVector;
     using IDAAdapterType   = IDAAdapter<VectorType, GlobalVectorType>;
@@ -120,13 +121,13 @@ namespace ImmersX
     void
     run();
 
-    const Problem &
+    const MatrixProblem &
     matrix_problem() const
     {
       return matrix_problem_storage;
     }
 
-    const Problem &
+    const FiberProblem &
     fiber_problem() const
     {
       return fiber_problem_storage;
@@ -166,13 +167,15 @@ namespace ImmersX
     void
     build_effective_matrices(double dt);
 
+    template <int problem_dim, int spacedim>
     void
-    build_effective_rhs(const Problem    &problem,
-                        const VectorType &previous_displacement,
-                        const VectorType &previous_velocity,
-                        double            time,
-                        double            dt,
-                        VectorType       &rhs) const;
+    build_effective_rhs(
+      const ElastodynamicsSolver<problem_dim, spacedim> &problem,
+      const VectorType                                  &previous_displacement,
+      const VectorType                                  &previous_velocity,
+      double                                             time,
+      double                                             dt,
+      VectorType                                        &rhs) const;
 
     void
     update_diagnostics(const VectorType &matrix_rhs,
@@ -202,22 +205,22 @@ namespace ImmersX
 #endif
 
     const Parameters &parameters;
-    Problem           matrix_problem_storage;
-    Problem           fiber_problem_storage;
+    MatrixProblem     matrix_problem_storage;
+    FiberProblem      fiber_problem_storage;
 
     using SchurSolver =
       LagrangeMultiplierSchurSolver<MatrixType,
                                     VectorType,
                                     ImmersXLA::MPI::PreconditionJacobi>;
 
-    std::unique_ptr<dealii::FESystem<dim>>   multiplier_fe_storage;
-    std::unique_ptr<dealii::DoFHandler<dim>> multiplier_dof_handler_storage;
-    std::unique_ptr<dealii::IndexSet>        multiplier_relevant_storage;
+    std::unique_ptr<dealii::FESystem<1, dim>>   multiplier_fe_storage;
+    std::unique_ptr<dealii::DoFHandler<1, dim>> multiplier_dof_handler_storage;
+    std::unique_ptr<dealii::IndexSet>           multiplier_relevant_storage;
     std::unique_ptr<dealii::AffineConstraints<double>>
                                            multiplier_constraints_storage;
     std::unique_ptr<FESpaceView<dim, dim>> matrix_space_storage;
-    std::unique_ptr<FESpaceView<dim, dim>> fiber_space_storage;
-    std::unique_ptr<FESpaceView<dim, dim>> multiplier_space_storage;
+    std::unique_ptr<FESpaceView<1, dim>>   fiber_space_storage;
+    std::unique_ptr<FESpaceView<1, dim>>   multiplier_space_storage;
     std::shared_ptr<MatrixType>            matrix_to_multiplier_storage;
     std::shared_ptr<MatrixType>            fiber_to_multiplier_storage;
     std::shared_ptr<MatrixType>            matrix_coupling_storage;
