@@ -19,6 +19,7 @@
 #  include <metric_flow_x/blood_flow_system.h>
 
 #  include <memory>
+#  include <numeric>
 #  include <utility>
 
 namespace ImmersX
@@ -129,12 +130,26 @@ namespace ImmersX
     auto space = std::make_shared<MetricFlowXFields::Space>(
       problem.dof_handler(),
       dealii::StaticMappingQ1<1, 3>::mapping,
-      problem.constraints(),
-      &problem.locally_relevant_dofs());
+      problem.constraints());
+    auto execution_constraints =
+      std::make_shared<dealii::AffineConstraints<double>>(
+        problem.constraints());
+    std::vector<dealii::types::global_dof_index> identity(
+      problem.dof_handler().n_dofs());
+    std::iota(identity.begin(), identity.end(), 0);
+    const auto make_state_field = [&](const auto        &extractor,
+                                      const std::string &name) {
+      return space->field(state, name, extractor)
+        .reindexed(name,
+                   problem.locally_owned_dofs(),
+                   problem.locally_relevant_dofs(),
+                   identity,
+                   execution_constraints);
+    };
     return {state,
             space,
-            space->field(state, "area", problem.area_extractor()),
-            space->field(state, "velocity", problem.velocity_extractor()),
+            make_state_field(problem.area_extractor(), "area"),
+            make_state_field(problem.velocity_extractor(), "velocity"),
             problem.component_dofs(Problem::Component::area),
             problem.component_dofs(Problem::Component::velocity)};
   }
