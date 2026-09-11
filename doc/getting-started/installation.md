@@ -16,6 +16,18 @@ cmake -S . -B build \
 cmake --build build -j
 ```
 
+ImmersX supports `Debug`, `Release`, and `DebugRelease`. `DebugRelease` is a
+single-config build-tree mode that builds both variants at once: Release
+targets keep their normal names, while Debug targets receive the `_debug`
+suffix. It does not select a CMake multi-config generator.
+
+```bash
+cmake -S . -B build-debugrelease \
+  -DCMAKE_BUILD_TYPE=DebugRelease \
+  -DDEAL_II_DIR=/path/to/deal.II
+cmake --build build-debugrelease -j
+```
+
 The optional `lib1dsolver` dependency enables the 3D/1D `coupled_elasticity`
 and `pseudocoupling1D` executables when it is available. The [application reference](../reference/applications)
 lists dependencies and supported dimensions for every executable.

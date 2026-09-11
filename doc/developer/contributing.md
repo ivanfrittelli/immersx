@@ -55,6 +55,24 @@ cmake -S . -B build-release \
 cmake --build build-release -j
 ```
 
+ImmersX also supports `DebugRelease` in one single-config build tree. It
+requires a deal.II installation containing both variants and creates the
+normal Release targets together with `_debug`-suffixed Debug targets:
+
+```bash
+cmake -S . -B build-debugrelease \
+  -DCMAKE_BUILD_TYPE=DebugRelease \
+  -DDEAL_II_DIR=/path/to/deal.II \
+  -DENABLE_GOOGLE_TESTING=ON \
+  -DENABLE_DEAL_II_APP_TESTING=ON
+
+cmake --build build-debugrelease -j
+```
+
+This is an ImmersX single-config mode, not a CMake multi-config generator.
+When both variants are enabled, CTest names include `.Release` or `.Debug` so
+they can coexist in one manifest.
+
 Depending on the deal.II installation, GoogleTest binaries are typically:
 
 ```text

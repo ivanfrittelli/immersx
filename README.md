@@ -22,6 +22,11 @@ cmake --build build -j
 ./build/poisson path/to/input.prm
 ```
 
+For a single-config build tree containing both variants, use
+`-DCMAKE_BUILD_TYPE=DebugRelease`. This creates unsuffixed Release targets and
+`_debug`-suffixed Debug targets; it is an ImmersX build mode, not a CMake
+multi-config generator.
+
 See the [getting-started guide](https://luca-heltai.github.io/immersx/getting-started/)
 for dependencies, configuration, and the first runnable example.
 

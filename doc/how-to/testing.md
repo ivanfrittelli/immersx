@@ -8,6 +8,11 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
 cmake --build build -j
 ```
 
+To compile and test both single-config variants in one tree, configure with
+`-DCMAKE_BUILD_TYPE=DebugRelease`. Release test executables remain unsuffixed
+and Debug executables use the `_debug` suffix; CTest gives the two variants
+distinct names.
+
 Run the application smoke tests from the build tree:
 
 ```bash
