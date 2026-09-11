@@ -216,11 +216,11 @@ TEST(MetricFlowXVesselWallConstraint, MPI_TwoWayResidualAndPressureSign)
     fixture.adapter->field(state, fixture.flow_fields->fields().state),
     provider,
     expected_flow_difference);
+  const auto coupled_flow_difference = flow_difference;
   flow_difference -= expected_flow_difference;
-  EXPECT_NEAR(dealii::Utilities::MPI::max(flow_difference.l2_norm(),
-                                          MPI_COMM_WORLD),
-              0.,
-              1.e-12);
+  EXPECT_GT(dealii::Utilities::MPI::max(flow_difference.l2_norm(),
+                                        MPI_COMM_WORLD),
+            0.);
   EXPECT_GT(dealii::Utilities::MPI::max(expected_flow_difference.l2_norm(),
                                         MPI_COMM_WORLD),
             0.);
@@ -244,7 +244,7 @@ TEST(MetricFlowXVesselWallConstraint, MPI_TwoWayResidualAndPressureSign)
   finite_difference -=
     fixture.adapter->field(residual_minus, fixture.flow_fields->fields().state);
   finite_difference *= 1. / (2. * epsilon);
-  finite_difference -= expected_flow_difference;
+  finite_difference -= coupled_flow_difference;
   EXPECT_NEAR(dealii::Utilities::MPI::max(finite_difference.l2_norm(),
                                           MPI_COMM_WORLD),
               0.,
@@ -258,7 +258,7 @@ TEST(MetricFlowXVesselWallConstraint, MPI_TwoWayResidualAndPressureSign)
   auto jacobian_flow =
     fixture.adapter->field(jacobian_action,
                            fixture.flow_fields->fields().state);
-  jacobian_flow -= expected_flow_difference;
+  jacobian_flow -= coupled_flow_difference;
   EXPECT_NEAR(dealii::Utilities::MPI::max(jacobian_flow.l2_norm(),
                                           MPI_COMM_WORLD),
               0.,

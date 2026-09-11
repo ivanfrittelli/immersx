@@ -84,6 +84,10 @@ foreach(_public_header ${_public_headers})
   target_include_directories(${_public_header_target}
                              PRIVATE ${CMAKE_SOURCE_DIR}/include
                                      ${CMAKE_BINARY_DIR}/include)
+  target_compile_options(${_public_header_target} PRIVATE
+                         $<$<CXX_COMPILER_ID:AppleClang>:-Wno-cpp>
+                         $<$<CXX_COMPILER_ID:Clang>:-Wno-cpp>
+                         $<$<CXX_COMPILER_ID:GNU>:-Wno-cpp>)
   if(IMMERSX_WITH_METRIC_FLOW_X AND
      (_public_header STREQUAL "immersx/physics/metric_flow_x.h" OR
       _public_header STREQUAL
@@ -132,6 +136,10 @@ FOREACH(_build_type ${_d2_build_types})
       TEST_DATA_DIR="${TEST_DATA_DIR}"
       TEST_OUTPUT_DIR="${TEST_OUTPUT_DIR}"
       IMMERSX_WEAK_TERM_TESTING)
+    TARGET_COMPILE_OPTIONS(${_exe} PRIVATE
+      $<$<CXX_COMPILER_ID:AppleClang>:-Wno-cpp>
+      $<$<CXX_COMPILER_ID:Clang>:-Wno-cpp>
+      $<$<CXX_COMPILER_ID:GNU>:-Wno-cpp>)
     IF(ENABLE_COUPLED_PROBLEMS)
       TARGET_COMPILE_DEFINITIONS(${_exe} PRIVATE ENABLE_COUPLED_PROBLEMS)
     ENDIF()
@@ -194,6 +202,7 @@ FOREACH(_build_type ${_d2_build_types})
         set(_category_filter "${_integration_filter}")
         set(_category_mpi_filter "${_integration_mpi_filter}")
         set(_category_quick TRUE)
+        set(_category_timeout 600)
       elseif(_category STREQUAL "validation")
         set(_category_filter "${_validation_filter}")
         set(_category_mpi_filter "${_validation_mpi_filter}")
@@ -259,6 +268,11 @@ if(IMMERSX_WITH_METRIC_FLOW_X)
                 IMMERSX_BINARY_DIR="${IMMERSX_BINARY_DIR}"
                 TEST_DATA_DIR="${TEST_DATA_DIR}"
                 TEST_OUTPUT_DIR="${TEST_OUTPUT_DIR}")
+      target_compile_options(
+        ${_metric_flow_x_test_target}
+        PRIVATE $<$<CXX_COMPILER_ID:AppleClang>:-Wno-cpp>
+                $<$<CXX_COMPILER_ID:Clang>:-Wno-cpp>
+                $<$<CXX_COMPILER_ID:GNU>:-Wno-cpp>)
       target_link_libraries(
         ${_metric_flow_x_test_target}
         ${TEST_LIBRARIES_${_BUILD_TYPE}}
@@ -317,6 +331,11 @@ if(IMMERSX_WITH_METRIC_FLOW_X)
                 IMMERSX_BINARY_DIR="${IMMERSX_BINARY_DIR}"
                 TEST_DATA_DIR="${TEST_DATA_DIR}"
                 TEST_OUTPUT_DIR="${TEST_OUTPUT_DIR}")
+      target_compile_options(
+        ${_mms_gate_target}
+        PRIVATE $<$<CXX_COMPILER_ID:AppleClang>:-Wno-cpp>
+                $<$<CXX_COMPILER_ID:Clang>:-Wno-cpp>
+                $<$<CXX_COMPILER_ID:GNU>:-Wno-cpp>)
       target_link_libraries(
         ${_mms_gate_target}
         ${TEST_LIBRARIES_${_BUILD_TYPE}}

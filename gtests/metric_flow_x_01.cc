@@ -33,8 +33,9 @@ namespace
   void
   initialize_problem(Problem &problem)
   {
-    problem.initialize_params(ImmersX::TestPaths::parameter_path(
-      "gtests/parameters/metric_flow_x.prm"));
+    const auto parameter_file =
+      ImmersX::TestPaths::parameter_path("gtests/parameters/metric_flow_x.prm");
+    problem.initialize_params(parameter_file);
     problem.setup();
   }
 
@@ -87,10 +88,9 @@ TEST(MetricFlowX, FeatureMacroIsEnabled)
 TEST(MetricFlowX, MPI_RegistersOneMixedStateField) // NOLINT
 {
   dealii::ParameterAcceptor::clear();
-  ImmersX::TimeParameters time_parameters(
-    "/MetricFlowSystem<1, 3>/Time parameters/");
   Problem problem(MPI_COMM_WORLD);
   initialize_problem(problem);
+  ImmersX::TimeParameters time_parameters;
 
   Adapter    adapter(time_parameters, MPI_COMM_WORLD);
   const auto fields =
@@ -113,10 +113,9 @@ TEST(MetricFlowX, MPI_RegistersOneMixedStateField) // NOLINT
 TEST(MetricFlowX, MPI_ResidualMatchesNativeAndPreservesAdditivity) // NOLINT
 {
   dealii::ParameterAcceptor::clear();
-  ImmersX::TimeParameters time_parameters(
-    "/MetricFlowSystem<1, 3>/Time parameters/");
   Problem problem(MPI_COMM_WORLD);
   initialize_problem(problem);
+  ImmersX::TimeParameters time_parameters;
 
   Adapter    adapter(time_parameters, MPI_COMM_WORLD);
   const auto fields =
@@ -144,10 +143,9 @@ TEST(MetricFlowX, MPI_ResidualMatchesNativeAndPreservesAdditivity) // NOLINT
 TEST(MetricFlowX, MPI_JacobianActionsMatchNativeMatrices) // NOLINT
 {
   dealii::ParameterAcceptor::clear();
-  ImmersX::TimeParameters time_parameters(
-    "/MetricFlowSystem<1, 3>/Time parameters/");
   Problem problem(MPI_COMM_WORLD);
   initialize_problem(problem);
+  ImmersX::TimeParameters time_parameters;
 
   Adapter    adapter(time_parameters, MPI_COMM_WORLD);
   const auto fields =
@@ -192,10 +190,9 @@ TEST(MetricFlowX, MPI_JacobianActionsMatchNativeMatrices) // NOLINT
 TEST(MetricFlowX, MPI_IDAVerticalSmoke) // NOLINT
 {
   dealii::ParameterAcceptor::clear();
-  ImmersX::TimeParameters time_parameters(
-    "/MetricFlowSystem<1, 3>/Time parameters/");
   Problem problem(MPI_COMM_WORLD);
   initialize_problem(problem);
+  ImmersX::TimeParameters time_parameters;
 
   Adapter    adapter(time_parameters, MPI_COMM_WORLD);
   const auto fields =
@@ -219,10 +216,9 @@ TEST(MetricFlowX, MPI_IDAVerticalSmoke) // NOLINT
 TEST(MetricFlowX, MPI_NativeStateInitializesPositiveArea) // NOLINT
 {
   dealii::ParameterAcceptor::clear();
-  ImmersX::TimeParameters time_parameters(
-    "/MetricFlowSystem<1, 3>/Time parameters/");
   Problem problem(MPI_COMM_WORLD);
   initialize_problem(problem);
+  ImmersX::TimeParameters time_parameters;
 
   auto state = problem.make_state();
   problem.compute_initial_solution(state, 0.);

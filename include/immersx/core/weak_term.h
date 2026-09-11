@@ -236,6 +236,7 @@ namespace ImmersX
         TargetExpression::source_field_type::spacedimension();
 
       using SourceField = typename ObservableType::source_field_type;
+      using TargetField = typename TargetExpression::source_field_type;
 
       template <typename MatrixType>
       struct MatrixStorage
@@ -297,11 +298,11 @@ namespace ImmersX
                     dealii::ExcMessage(
                       "A weak term active source field must be registered."));
         AssertThrow(SourceField::spacedimension() == spacedim &&
-                      SourceField::dimension() >= dim,
+                      (SourceField::dimension() >= dim ||
+                       (SourceField::dimension() < dim && dim == spacedim)),
                     dealii::ExcMessage(
                       "Weak-term source and target must share an embedding "
-                      "dimension, with the source support no lower than the "
-                      "target support."));
+                      "dimension and use a supported direct pairing."));
 
         return assemble_from_source<SourceField, VectorType, MatrixType>(
           observable, observable.source(), target);
@@ -401,13 +402,12 @@ namespace ImmersX
         const auto degree =
           std::max(source.space().finite_element().degree,
                    target_field.space().finite_element().degree);
-        const dealii::QGauss<dim> quadrature(degree + 1);
 
         auto result =
           std::make_shared<PreparedMatrix<VectorType, MatrixType>>();
-        result->rebuild = [observable, source, target, quadrature] {
+        result->rebuild = [observable, source, target, degree] {
           return assemble_nonmatching<SourceField, VectorType, MatrixType>(
-            observable, source, target, quadrature);
+            observable, source, target, degree);
         };
         result->structure_is_current =
           [source,
@@ -488,7 +488,7 @@ namespace ImmersX
             if (&source.space().dof_handler().get_triangulation() !=
                 &target_field.space().dof_handler().get_triangulation())
               return assemble_nonmatching<SourceField, VectorType, MatrixType>(
-                observable, source, target, quadrature);
+                observable, source, target, degree);
 
             AssertThrow(&source.mapping() == &target_field.mapping(),
                         dealii::ExcMessage(
@@ -619,10 +619,10 @@ namespace ImmersX
 
       template <typename SourceField, typename VectorType, typename MatrixType>
       static MatrixStorage<MatrixType>
-      assemble_nonmatching(const ObservableType          &observable,
-                           const SourceField             &source,
-                           const TargetExpression        &target,
-                           const dealii::Quadrature<dim> &quadrature)
+      assemble_nonmatching(const ObservableType   &observable,
+                           const SourceField      &source,
+                           const TargetExpression &target,
+                           const unsigned int      degree)
       {
 #ifdef IMMERSX_WEAK_TERM_TESTING
         ++weak_term_nonmatching_preparations;
@@ -633,7 +633,14 @@ namespace ImmersX
                                               MatrixType>(observable,
                                                           source,
                                                           target,
-                                                          quadrature);
+                                                          degree);
+        else if constexpr (SourceField::dimension() < dim && dim == spacedim)
+          return assemble_nonmatching_forward<SourceField,
+                                              VectorType,
+                                              MatrixType>(observable,
+                                                          source,
+                                                          target,
+                                                          degree);
         else
           {
             AssertThrow(false,
@@ -644,6 +651,205 @@ namespace ImmersX
           }
       }
 
+      /** Assemble a lower-dimensional source against a full-dimensional test.
+       * Source quadrature points are inserted into the distributed target
+       * background.  The particle properties retain the source-cell stencil,
+       * so the resulting matrix has target rows and source columns even when
+       * the two meshes have different dimensions and partitions.
+       */
+      template <typename SourceField, typename VectorType, typename MatrixType>
+      static MatrixStorage<MatrixType>
+      assemble_nonmatching_forward(const ObservableType   &observable,
+                                   const SourceField      &source,
+                                   const TargetExpression &target,
+                                   const unsigned int      degree)
+      {
+        static_assert(SourceField::dimension() < dim && dim == spacedim,
+                      "Forward nonmatching assembly needs a lower-dimensional "
+                      "source and a full-dimensional target.");
+
+        const auto  target_field = target.source();
+        const auto *target_tria =
+          dynamic_cast<const dealii::parallel::TriangulationBase<spacedim> *>(
+            &target_field.space().dof_handler().get_triangulation());
+        AssertThrow(target_tria != nullptr,
+                    dealii::ExcMessage(
+                      "A mixed-dimensional weak term needs a distributed "
+                      "target background triangulation."));
+
+        const dealii::QGauss<SourceField::dimension()> quadrature(degree + 1);
+        const unsigned int                             n_source_dofs =
+          source.space().finite_element().n_dofs_per_cell();
+        const unsigned int source_components =
+          n_stored_components<typename ObservableType::value_type>();
+        const unsigned int n_properties =
+          1 + n_source_dofs + n_source_dofs * source_components;
+
+        ParticleCouplingParameters<spacedim> particle_parameters(
+          "/ImmersX/weak term/forward/" +
+          std::to_string(reinterpret_cast<std::uintptr_t>(&source)));
+        ParticleCoupling<spacedim> distribution(particle_parameters);
+        distribution.initialize_particle_handler(*target_tria,
+                                                 target_field.mapping(),
+                                                 n_properties);
+
+        dealii::FEValues<SourceField::dimension(), spacedim> source_values(
+          source.mapping(),
+          source.space().finite_element(),
+          quadrature,
+          dealii::update_values | dealii::update_JxW_values |
+            dealii::update_quadrature_points | observable.update_flags());
+
+        std::vector<dealii::Point<spacedim>>       positions;
+        std::vector<std::vector<double>>           properties;
+        std::vector<dealii::types::particle_index> ids;
+        positions.reserve(source.dof_handler().n_dofs() * quadrature.size());
+        properties.reserve(positions.capacity());
+        ids.reserve(positions.capacity());
+
+        std::vector<dealii::types::global_dof_index> source_indices(
+          n_source_dofs);
+        for (const auto &source_cell :
+             source.dof_handler().active_cell_iterators())
+          if (source_cell->is_locally_owned())
+            {
+              source_values.reinit(source_cell);
+              source_cell->get_dof_indices(source_indices);
+              for (const auto q : source_values.quadrature_point_indices())
+                {
+                  std::vector<double> point_properties;
+                  point_properties.reserve(n_properties);
+                  point_properties.push_back(source_values.JxW(q));
+                  for (const auto index : source_indices)
+                    {
+                      const auto encoded = static_cast<double>(index);
+                      AssertThrow(
+                        static_cast<dealii::types::global_dof_index>(encoded) ==
+                          index,
+                        dealii::ExcMessage(
+                          "A source DoF index cannot be transported exactly "
+                          "through ParticleHandler properties."));
+                      point_properties.push_back(encoded);
+                    }
+                  for (unsigned int i = 0; i < n_source_dofs; ++i)
+                    flatten_value(observable.operation()(
+                                    source_values[source.extractor()], i, q),
+                                  point_properties);
+
+                  positions.push_back(source_values.quadrature_point(q));
+                  properties.emplace_back(std::move(point_properties));
+                  const auto id = static_cast<std::uint64_t>(
+                                    source_cell->global_active_cell_index()) *
+                                    quadrature.size() +
+                                  q;
+                  ids.push_back(static_cast<dealii::types::particle_index>(id));
+                }
+            }
+        distribution.insert_points(positions, properties, ids);
+
+        dealii::DynamicSparsityPattern sparsity(
+          target_field.dof_handler().n_dofs(),
+          source.dof_handler().n_dofs(),
+          target_field.locally_owned_dofs());
+        std::vector<dealii::types::global_dof_index> target_indices(
+          target_field.space().finite_element().n_dofs_per_cell());
+        for (const auto &particle : distribution.get_particles())
+          if (particle.get_surrounding_cell()->is_locally_owned())
+            {
+              const typename TargetField::space_type::DoFHandlerType::
+                cell_iterator target_cell(*particle.get_surrounding_cell(),
+                                          &target_field.dof_handler());
+              target_cell->get_dof_indices(target_indices);
+              const auto &data = particle.get_properties();
+              for (const auto target_index : target_indices)
+                if (target_field.has_execution_index(target_index))
+                  for (unsigned int j = 0; j < n_source_dofs; ++j)
+                    sparsity.add(target_field.execution_index(target_index),
+                                 static_cast<dealii::types::global_dof_index>(
+                                   data[1 + j]));
+            }
+        dealii::SparsityTools::distribute_sparsity_pattern(
+          sparsity,
+          target_field.locally_owned_dofs(),
+          target_field.space().mpi_communicator(),
+          target_field.locally_relevant_dofs());
+
+        auto matrix = std::make_shared<MatrixType>();
+        auto matrix_sparsity =
+          initialize_weak_matrix(*matrix,
+                                 target_field.locally_owned_dofs(),
+                                 source.locally_owned_dofs(),
+                                 sparsity,
+                                 target_field.space().mpi_communicator());
+
+        const unsigned int n_target_dofs =
+          target_field.space().finite_element().n_dofs_per_cell();
+        const auto target_flags = target.update_flags();
+        const auto scale        = observable.scale() * target.scale();
+        for (const auto &particle : distribution.get_particles())
+          if (particle.get_surrounding_cell()->is_locally_owned())
+            {
+              const typename TargetField::space_type::DoFHandlerType::
+                cell_iterator target_cell(*particle.get_surrounding_cell(),
+                                          &target_field.dof_handler());
+              target_cell->get_dof_indices(target_indices);
+              std::vector<unsigned int> target_positions;
+              std::vector<dealii::types::global_dof_index>
+                target_execution_indices;
+              for (unsigned int i = 0; i < n_target_dofs; ++i)
+                if (target_field.has_execution_index(target_indices[i]))
+                  {
+                    target_positions.push_back(i);
+                    target_execution_indices.push_back(
+                      target_field.execution_index(target_indices[i]));
+                  }
+
+              const dealii::Quadrature<dim> point_quadrature(
+                std::vector<dealii::Point<dim>>{
+                  particle.get_reference_location()});
+              dealii::FEValues<dim, spacedim> target_values(
+                target_field.mapping(),
+                target_field.space().finite_element(),
+                point_quadrature,
+                target_flags);
+              target_values.reinit(target_cell);
+              const auto &target_view = target_values[target_field.extractor()];
+              const auto &data        = particle.get_properties();
+              dealii::FullMatrix<double> local(target_positions.size(),
+                                               n_source_dofs);
+              for (unsigned int i = 0; i < target_positions.size(); ++i)
+                {
+                  const auto target_value =
+                    target.operation()(target_view, target_positions[i], 0);
+                  for (unsigned int j = 0; j < n_source_dofs; ++j)
+                    {
+                      unsigned int offset =
+                        1 + n_source_dofs + j * source_components;
+                      const auto source_value =
+                        unflatten_value<typename ObservableType::value_type>(
+                          data, offset);
+                      local(i, j) =
+                        scale * natural_pairing(source_value, target_value) *
+                        data[0];
+                    }
+                }
+
+              std::vector<dealii::types::global_dof_index> source_native(
+                n_source_dofs);
+              for (unsigned int j = 0; j < n_source_dofs; ++j)
+                source_native[j] =
+                  static_cast<dealii::types::global_dof_index>(data[1 + j]);
+              target_field.constraints().distribute_local_to_global(
+                local,
+                target_execution_indices,
+                source.constraints(),
+                source_native,
+                *matrix);
+            }
+        compress_weak_matrix(*matrix);
+        return {std::move(matrix), std::move(matrix_sparsity)};
+      }
+
       /** Assemble a nonmatching pairing by transposing the natural source-row
        * matrix. Target quadrature points are searched in the full-dimensional
        * source mesh, so rows remain owned by the source background ranks and no
@@ -651,17 +857,18 @@ namespace ImmersX
        * transpose. */
       template <typename SourceField, typename VectorType, typename MatrixType>
       static MatrixStorage<MatrixType>
-      assemble_nonmatching_reverse(const ObservableType          &observable,
-                                   const SourceField             &source,
-                                   const TargetExpression        &target,
-                                   const dealii::Quadrature<dim> &quadrature)
+      assemble_nonmatching_reverse(const ObservableType   &observable,
+                                   const SourceField      &source,
+                                   const TargetExpression &target,
+                                   const unsigned int      degree)
       {
         static_assert(SourceField::dimension() == spacedim,
                       "Nonmatching weak terms require a full-dimensional "
                       "source background.");
 
-        const auto  target_field = target.source();
-        const auto *source_tria =
+        const auto                target_field = target.source();
+        const dealii::QGauss<dim> quadrature(degree + 1);
+        const auto               *source_tria =
           dynamic_cast<const dealii::parallel::TriangulationBase<spacedim> *>(
             &source.space().dof_handler().get_triangulation());
         AssertThrow(source_tria != nullptr,
@@ -1705,11 +1912,15 @@ namespace ImmersX
                     dealii::ExcMessage(
                       "A lifted weak term needs a distributed source mesh."));
 
-        const auto points = target.lifted_points();
-        AssertThrow(!points.empty(),
+        const auto         points = target.lifted_points();
+        const unsigned int local_target_dofs =
+          points.empty() ? 0u : points.front().dof_indices.size();
+        const unsigned int n_target_dofs =
+          dealii::Utilities::MPI::max(local_target_dofs,
+                                      target_field.space().mpi_communicator());
+        AssertThrow(n_target_dofs > 0,
                     dealii::ExcMessage(
-                      "A lifted test cannot assemble without points."));
-        const unsigned int n_target_dofs = points.front().dof_indices.size();
+                      "A lifted target has no active target DoFs."));
         for (const auto &point : points)
           AssertDimension(point.dof_indices.size(), n_target_dofs);
         const unsigned int n_properties =
@@ -2357,27 +2568,58 @@ namespace ImmersX
             {
               auto participant_term =
                 builder.term(field, suffix + ".participant");
+              const auto participant_field = observable_.source_for(field);
               participant_term.residual([observable = observable_,
                                          multiplier_expression,
                                          field,
                                          multiplier,
-                                         sign](const auto &context) {
+                                         sign,
+                                         participant_field](
+                                          const auto &context) {
                 const auto jacobian =
                   Assembly::template linearize<VectorType, MatrixType>(
                     observable, multiplier_expression, field, context);
                 const auto  reaction = dealii::transpose_operator(jacobian);
                 const auto *multiplier_state = &context.state(multiplier);
                 typename Model::Operation result;
-                result.reinit_vector = reaction.reinit_range_vector;
+                result.reinit_vector =
+                  [owned        = participant_field.locally_owned_dofs(),
+                   relevant     = participant_field.locally_relevant_dofs(),
+                   communicator = participant_field.space().mpi_communicator()](
+                    VectorType &vector, const bool omit) {
+                    if constexpr (detail::NonlinearWeakAssembly<
+                                    TrialExpression,
+                                    decltype(multiplier_expression)>::
+                                    template has_distributed_reinit<
+                                      VectorType,
+                                      decltype(participant_field)>::value)
+                      vector.reinit(owned, relevant, communicator, omit);
+                    else
+                      vector.reinit(owned.size(), omit);
+                  };
                 result.apply =
                   [reaction, multiplier_state, sign](VectorType &destination) {
                     reaction.vmult(destination, *multiplier_state);
                     destination *= sign;
                   };
                 result.apply_add =
-                  [reaction, multiplier_state, sign](VectorType &destination) {
+                  [reaction,
+                   multiplier_state,
+                   sign,
+                   owned        = participant_field.locally_owned_dofs(),
+                   relevant     = participant_field.locally_relevant_dofs(),
+                   communicator = participant_field.space().mpi_communicator()](
+                    VectorType &destination) {
                     VectorType contribution;
-                    reaction.reinit_range_vector(contribution, false);
+                    if constexpr (detail::NonlinearWeakAssembly<
+                                    TrialExpression,
+                                    decltype(multiplier_expression)>::
+                                    template has_distributed_reinit<
+                                      VectorType,
+                                      decltype(participant_field)>::value)
+                      contribution.reinit(owned, relevant, communicator, false);
+                    else
+                      contribution.reinit(owned.size(), false);
                     reaction.vmult(contribution, *multiplier_state);
                     destination.add(sign, contribution);
                   };

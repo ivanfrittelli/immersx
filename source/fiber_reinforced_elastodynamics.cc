@@ -39,16 +39,12 @@ namespace ImmersX
 
   namespace
   {
-    template <int dim>
-    using FiberVectorField =
-      Field<dim, dim, dealii::FEValuesExtractors::Vector>;
-
-    template <int dim>
+    template <int matrix_dim, int fiber_dim, int spacedim>
     void
     assemble_fiber_constraint_matrices(
-      const FESpaceView<dim, dim>                   &matrix_space,
-      const FESpaceView<dim, dim>                   &fiber_space,
-      const FESpaceView<dim, dim>                   &multiplier_space,
+      const FESpaceView<matrix_dim, spacedim>       &matrix_space,
+      const FESpaceView<fiber_dim, spacedim>        &fiber_space,
+      const FESpaceView<fiber_dim, spacedim>        &multiplier_space,
       std::shared_ptr<ImmersXLA::MPI::SparseMatrix> &matrix_to_multiplier,
       std::shared_ptr<ImmersXLA::MPI::SparseMatrix> &fiber_to_multiplier,
       std::shared_ptr<ImmersXLA::MPI::SparseMatrix> &matrix_coupling)
@@ -70,17 +66,16 @@ namespace ImmersX
       const auto fiber_observable      = value(fiber_velocity);
       using MatrixObservable           = decltype(matrix_observable);
       using FiberObservable            = decltype(fiber_observable);
-      using MultiplierField            = FiberVectorField<dim>;
       const auto multiplier_observable = value(multiplier);
       using MultiplierObservable       = decltype(multiplier_observable);
       using MatrixType                 = ImmersXLA::MPI::SparseMatrix;
       using VectorType                 = ImmersXLA::MPI::Vector;
 
-      matrix_to_multiplier =
+      const auto matrix_prepared =
         detail::WeakAssembly<MatrixObservable, MultiplierObservable>::
-          template assemble<VectorType, MatrixType>(matrix_observable,
-                                                    multiplier_observable)
-            .matrix;
+          template prepare<VectorType, MatrixType>(matrix_observable,
+                                                   multiplier_observable);
+      matrix_to_multiplier = matrix_prepared->storage.matrix;
       fiber_to_multiplier =
         detail::WeakAssembly<FiberObservable, MultiplierObservable>::
           template assemble<VectorType, MatrixType>(fiber_observable,
@@ -243,19 +238,21 @@ namespace ImmersX
                matrix_problem_storage.mapping(),
                matrix_problem_storage.velocity_constraints(),
                &matrix_problem_storage.locally_relevant_dofs()));
-    fiber_space_storage = std::make_unique<FESpaceView<dim, dim>>(
+    fiber_space_storage = std::make_unique<FESpaceView<1, dim>>(
       fe_space(fiber_problem_storage.dof_handler(),
                fiber_problem_storage.mapping(),
                fiber_problem_storage.velocity_constraints(),
                &fiber_problem_storage.locally_relevant_dofs()));
 
-    multiplier_dof_handler_storage = std::make_unique<dealii::DoFHandler<dim>>(
-      fiber_problem_storage.triangulation());
+    multiplier_dof_handler_storage =
+      std::make_unique<dealii::DoFHandler<1, dim>>(
+        fiber_problem_storage.triangulation());
     const unsigned int degree = parameters.multiplier_degree == 0 ?
                                   fiber_problem_storage.fe().degree :
                                   parameters.multiplier_degree;
     multiplier_fe_storage =
-      std::make_unique<dealii::FESystem<dim>>(dealii::FE_Q<dim>(degree), dim);
+      std::make_unique<dealii::FESystem<1, dim>>(dealii::FE_Q<1, dim>(degree),
+                                                 dim);
     multiplier_dof_handler_storage->distribute_dofs(*multiplier_fe_storage);
     multiplier_constraints_storage =
       std::make_unique<dealii::AffineConstraints<double>>();
@@ -269,7 +266,7 @@ namespace ImmersX
     multiplier_relevant_storage = std::make_unique<dealii::IndexSet>(
       dealii::DoFTools::extract_locally_relevant_dofs(
         *multiplier_dof_handler_storage));
-    multiplier_space_storage = std::make_unique<FESpaceView<dim, dim>>(
+    multiplier_space_storage = std::make_unique<FESpaceView<1, dim>>(
       fe_space(*multiplier_dof_handler_storage,
                fiber_problem_storage.mapping(),
                *multiplier_constraints_storage,
@@ -372,14 +369,15 @@ namespace ImmersX
 
 
   template <int dim>
+  template <int problem_dim, int spacedim>
   void
   FiberReinforcedElastodynamics<dim>::build_effective_rhs(
-    const Problem    &problem,
-    const VectorType &previous_displacement,
-    const VectorType &previous_velocity,
-    const double      time,
-    const double      dt,
-    VectorType       &rhs) const
+    const ElastodynamicsSolver<problem_dim, spacedim> &problem,
+    const VectorType                                  &previous_displacement,
+    const VectorType                                  &previous_velocity,
+    const double                                       time,
+    const double                                       dt,
+    VectorType                                        &rhs) const
   {
     problem.body_force_at_time(time, rhs);
 
@@ -560,7 +558,7 @@ namespace ImmersX
     const auto output_directory =
       std::filesystem::path(parameters.output_directory) / "interaction";
     std::filesystem::create_directories(output_directory);
-    dealii::DataOut<dim> data_out;
+    dealii::DataOut<1, dim> data_out;
     data_out.attach_dof_handler(*multiplier_dof_handler_storage);
     const std::vector<std::string> names(dim, "lagrange_multiplier");
     const std::vector<
@@ -569,7 +567,7 @@ namespace ImmersX
         dim, dealii::DataComponentInterpretation::component_is_part_of_vector);
     data_out.add_data_vector(multiplier_storage,
                              names,
-                             dealii::DataOut<dim>::type_dof_data,
+                             dealii::DataOut<1, dim>::type_dof_data,
                              interpretation);
     data_out.build_patches(fiber_problem_storage.mapping());
 

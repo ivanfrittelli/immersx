@@ -1,4 +1,4 @@
-# Full-order matrix plus additive/excess fiber tutorial.
+# Matrix plus embedded additive/excess fiber tutorial.
 set dimension       = 2
 set space dimension = 2
 
@@ -70,8 +70,8 @@ subsection Fiber Reinforced Elastodynamics
     set Dirichlet boundary ids =
 
     subsection Grid generation
-      set Grid generator           = subdivided_hyper_rectangle
-      set Grid generator arguments = 6, 2: -0.65, -0.12: 0.65, 0.12: true
+      set Grid generator           = hyper_cube
+      set Grid generator arguments = -0.65: 0.65: false
       set Triangulation type       = distributed
     end
 

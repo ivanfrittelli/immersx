@@ -28,7 +28,9 @@ set(IMMERSX_UNIT_TEST_SUITES
     ReducedPoisson0D)
 
 set(IMMERSX_INTEGRATION_TEST_SUITES
+    ApplicationRoadmap
     ContributorPhysics
+    FoundationalApplications
     TractionParameters
     DistributedIDA
     DistributedLiftedQuadrature
@@ -98,8 +100,10 @@ set(IMMERSX_TEST_PRIMARY_CATEGORIES unit integration validation application)
 # twice.
 set(_immersx_expected_test_suites
     AppExecutables
+    ApplicationRoadmap
     ContributorCore
     ContributorPhysics
+    FoundationalApplications
     TractionParameters
     DimensionParameters
     DistributedIDA

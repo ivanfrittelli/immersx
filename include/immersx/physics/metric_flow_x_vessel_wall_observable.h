@@ -200,15 +200,16 @@ namespace ImmersX
     multiplier_field() const
     {
       using FieldType = Field<1, 3, dealii::FEValuesExtractors::Scalar>;
+      FieldType multiplier(area_.space(), "lambda", area_.extractor());
       std::vector<dealii::types::global_dof_index> indices(
         problem_.dof_handler().n_dofs(),
         std::numeric_limits<dealii::types::global_dof_index>::max());
       for (const auto &[native, compact] : area_to_multiplier_)
         indices[native] = compact;
-      return area_.reindexed("lambda",
-                             multiplier_owned_,
-                             multiplier_relevant_,
-                             std::move(indices));
+      return multiplier.reindexed("lambda",
+                                  multiplier_owned_,
+                                  multiplier_relevant_,
+                                  std::move(indices));
     }
 
     MetricFlowXRadialLaw

@@ -9,4 +9,5 @@ reduced spaces, semantic fields, and additive residual contributions.
 overview
 mathematical-background
 architecture
+application-roadmap
 ```
