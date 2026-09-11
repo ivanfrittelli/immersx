@@ -2231,7 +2231,7 @@ namespace ImmersX
                     "triangulation."));
       const auto &target_mapping = target.mapping();
       auto        distribution   = std::make_shared<
-                 DistributedLiftedQuadrature<TargetField::spacedimension()>>(
+        DistributedLiftedQuadrature<TargetField::spacedimension()>>(
         load.geometry().particle_coupling_parameters());
       distribution->initialize(*distributed_target,
                                target_mapping,
