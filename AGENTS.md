@@ -281,6 +281,11 @@ cmake -S . -B build-debug \
 cmake --build build-debug -j
 ```
 
+ImmersX also supports `-DCMAKE_BUILD_TYPE=DebugRelease` when deal.II provides
+both Debug and Release variants. This is a single-config ImmersX mode: normal
+target names select Release and `_debug`-suffixed target names select Debug. It
+is not a CMake multi-config generator.
+
 Set `DEAL_II_DIR` when required by the local installation.
 
 Use ccache when available:
