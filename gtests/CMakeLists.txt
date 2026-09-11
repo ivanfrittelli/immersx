@@ -67,54 +67,72 @@ if(IMMERSX_WITH_METRIC_FLOW_X)
 endif()
 
 set(_public_header_targets)
-string(TOUPPER "${CMAKE_BUILD_TYPE}" _public_build_type)
-foreach(_public_header ${_public_headers})
-  string(REPLACE "/" "_" _public_header_id "${_public_header}")
-  string(REPLACE "." "_" _public_header_id "${_public_header_id}")
-  set(PUBLIC_HEADER "${_public_header}")
-  configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/public_header_compile.cpp.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/public_header_${_public_header_id}.cpp"
-    @ONLY)
+set(_public_header_variant_targets)
+foreach(_build_type ${_d2_build_types})
+  if(_build_type IN_LIST IMMERSX_REQUESTED_BUILD_TYPES)
+    string(TOUPPER "${_build_type}" _BUILD_TYPE)
+    string(TOLOWER "${_build_type}" _build_type_lower)
+    set(_public_header_variant_targets_for_build)
+    foreach(_public_header ${_public_headers})
+      string(REPLACE "/" "_" _public_header_id "${_public_header}")
+      string(REPLACE "." "_" _public_header_id "${_public_header_id}")
+      set(PUBLIC_HEADER "${_public_header}")
+      configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/public_header_compile.cpp.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/public_header_${_public_header_id}.cpp"
+        @ONLY)
 
-  set(_public_header_target "public_header_${_public_header_id}")
-  add_executable(
-    ${_public_header_target}
-    "${CMAKE_CURRENT_BINARY_DIR}/public_header_${_public_header_id}.cpp")
-  target_include_directories(${_public_header_target}
-                             PRIVATE ${CMAKE_SOURCE_DIR}/include
-                                     ${CMAKE_BINARY_DIR}/include)
-  target_compile_options(${_public_header_target} PRIVATE
-                         $<$<CXX_COMPILER_ID:AppleClang>:-Wno-cpp>
-                         $<$<CXX_COMPILER_ID:Clang>:-Wno-cpp>
-                         $<$<CXX_COMPILER_ID:GNU>:-Wno-cpp>)
-  if(IMMERSX_WITH_METRIC_FLOW_X AND
-     (_public_header STREQUAL "immersx/physics/metric_flow_x.h" OR
-      _public_header STREQUAL
-        "immersx/physics/metric_flow_x_vessel_wall_observable.h" OR
-      _public_header STREQUAL
-        "immersx/algebra/metric_flow_x_vessel_wall_constraint.h"))
-    target_link_libraries(${_public_header_target}
-                          MetricFlowX::metric_flow_x)
+      set(_public_header_target
+          "public_header_${_public_header_id}${${_build_type}_postfix}")
+      add_executable(
+        ${_public_header_target}
+        "${CMAKE_CURRENT_BINARY_DIR}/public_header_${_public_header_id}.cpp")
+      target_include_directories(${_public_header_target}
+                                 PRIVATE ${CMAKE_SOURCE_DIR}/include
+                                         ${CMAKE_BINARY_DIR}/include)
+      target_compile_options(${_public_header_target} PRIVATE
+                             $<$<CXX_COMPILER_ID:AppleClang>:-Wno-cpp>
+                             $<$<CXX_COMPILER_ID:Clang>:-Wno-cpp>
+                             $<$<CXX_COMPILER_ID:GNU>:-Wno-cpp>)
+      if(IMMERSX_WITH_METRIC_FLOW_X AND
+         (_public_header STREQUAL "immersx/physics/metric_flow_x.h" OR
+          _public_header STREQUAL
+            "immersx/physics/metric_flow_x_vessel_wall_observable.h" OR
+          _public_header STREQUAL
+            "immersx/algebra/metric_flow_x_vessel_wall_constraint.h"))
+        target_link_libraries(${_public_header_target}
+                              MetricFlowX::metric_flow_x)
+      endif()
+      DEAL_II_SETUP_TARGET(${_public_header_target} ${_BUILD_TYPE})
+      list(APPEND _public_header_targets ${_public_header_target})
+      list(APPEND _public_header_variant_targets_for_build
+           ${_public_header_target})
+    endforeach()
+    add_custom_target(
+      "immersx_public_header_self_containment_${_build_type_lower}"
+      DEPENDS ${_public_header_variant_targets_for_build})
+    list(APPEND _public_header_variant_targets
+         "immersx_public_header_self_containment_${_build_type_lower}")
+
+    set(_public_header_test
+        "ImmersX${${_build_type}_ctest_suffix}.PublicHeaderSelfContainment")
+    add_test(NAME ${_public_header_test}
+             COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}
+                     --target
+                     "immersx_public_header_self_containment_${_build_type_lower}")
+    set_tests_properties(${_public_header_test}
+                         PROPERTIES LABELS "unit;quick" TIMEOUT 300)
   endif()
-  DEAL_II_SETUP_TARGET(${_public_header_target} ${_public_build_type})
-  list(APPEND _public_header_targets ${_public_header_target})
 endforeach()
 
 add_custom_target(immersx_public_header_self_containment ALL
-                  DEPENDS ${_public_header_targets})
-add_test(NAME ImmersX.PublicHeaderSelfContainment
-         COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}
-                 --target immersx_public_header_self_containment)
-set_tests_properties(ImmersX.PublicHeaderSelfContainment
-                     PROPERTIES LABELS "unit;quick" TIMEOUT 300)
+                  DEPENDS ${_public_header_variant_targets})
 
 FOREACH(_build_type ${_d2_build_types})
   # Postfix to use everywhere
   SET(_p "${${_build_type}_postfix}")
-  # Only build this type, if deal.II was compiled with it.
-  IF(CMAKE_BUILD_TYPE MATCHES "${_build_type}" AND
-      DEAL_II_BUILD_TYPE MATCHES "${_build_type}")
+  # Only build requested variants that are provided by deal.II.
+  IF(_build_type IN_LIST IMMERSX_REQUESTED_BUILD_TYPES)
 
     MESSAGE("-- Found ${_build_type} version of deal.II.")
     
@@ -213,7 +231,8 @@ FOREACH(_build_type ${_d2_build_types})
         set(_category_timeout 1200)
       endif()
 
-      set(_serial_test "ImmersX.${_category}.Serial")
+      set(_serial_test
+          "ImmersX${${_build_type}_ctest_suffix}.${_category}.Serial")
       add_test(NAME ${_serial_test}
                COMMAND $<TARGET_FILE:${_exe}>
                        --gtest_filter=${_category_filter}-*.MPI_*)
@@ -226,7 +245,8 @@ FOREACH(_build_type ${_d2_build_types})
                                       TIMEOUT ${_category_timeout})
 
       if(_immersx_mpiexec)
-        set(_mpi_test "ImmersX.${_category}.MPI")
+        set(_mpi_test
+            "ImmersX${${_build_type}_ctest_suffix}.${_category}.MPI")
         add_test(NAME ${_mpi_test}
                  COMMAND ${_immersx_mpiexec} -np 2
                          $<TARGET_FILE:${_exe}>
@@ -247,8 +267,7 @@ ENDFOREACH()
 
 if(IMMERSX_WITH_METRIC_FLOW_X)
   foreach(_build_type ${_d2_build_types})
-    if(CMAKE_BUILD_TYPE MATCHES "${_build_type}" AND
-       DEAL_II_BUILD_TYPE MATCHES "${_build_type}")
+    if(_build_type IN_LIST IMMERSX_REQUESTED_BUILD_TYPES)
       string(TOUPPER "${_build_type}" _BUILD_TYPE)
       set(_metric_flow_x_test_target
           "metric_flow_x_tests${${_build_type}_postfix}")
@@ -281,18 +300,22 @@ if(IMMERSX_WITH_METRIC_FLOW_X)
       target_include_directories(${_metric_flow_x_test_target}
                                  PRIVATE ${GTEST_INCLUDE_DIRS})
       DEAL_II_SETUP_TARGET(${_metric_flow_x_test_target} ${_BUILD_TYPE})
-      add_test(NAME ImmersX.integration.MetricFlowX.Serial
+      set(_metric_flow_x_serial_test
+          "ImmersX${${_build_type}_ctest_suffix}.integration.MetricFlowX.Serial")
+      add_test(NAME ${_metric_flow_x_serial_test}
                COMMAND $<TARGET_FILE:${_metric_flow_x_test_target}>
                        --gtest_filter=MetricFlowX.*-*.MPI_*)
-      set_tests_properties(ImmersX.integration.MetricFlowX.Serial
+      set_tests_properties(${_metric_flow_x_serial_test}
                            PROPERTIES LABELS "integration;quick" TIMEOUT 300)
       find_program(_immersx_mpiexec NAMES mpirun mpiexec)
       if(_immersx_mpiexec)
-        add_test(NAME ImmersX.integration.MetricFlowX.MPI
+        set(_metric_flow_x_mpi_test
+            "ImmersX${${_build_type}_ctest_suffix}.integration.MetricFlowX.MPI")
+        add_test(NAME ${_metric_flow_x_mpi_test}
                  COMMAND ${_immersx_mpiexec} -np 2
                          $<TARGET_FILE:${_metric_flow_x_test_target}>
                          --gtest_filter=MetricFlowX.MPI_*)
-        set_tests_properties(ImmersX.integration.MetricFlowX.MPI
+        set_tests_properties(${_metric_flow_x_mpi_test}
                              PROPERTIES LABELS "integration;quick;mpi"
                                         TIMEOUT 300)
       endif()
@@ -309,8 +332,7 @@ if(IMMERSX_WITH_METRIC_FLOW_X)
   # executable filters MPI tests by process count; this target lets CTest
   # invoke the gate directly.
   foreach(_build_type ${_d2_build_types})
-    if(CMAKE_BUILD_TYPE MATCHES "${_build_type}" AND
-       DEAL_II_BUILD_TYPE MATCHES "${_build_type}")
+    if(_build_type IN_LIST IMMERSX_REQUESTED_BUILD_TYPES)
       string(TOUPPER "${_build_type}" _BUILD_TYPE)
       set(_mms_gate_target
           "metric_flow_x_elastodynamics_mms_verification${${_build_type}_postfix}")
@@ -345,12 +367,14 @@ if(IMMERSX_WITH_METRIC_FLOW_X)
       DEAL_II_SETUP_TARGET(${_mms_gate_target} ${_BUILD_TYPE})
       find_program(_immersx_mpiexec NAMES mpirun mpiexec)
       if(_immersx_mpiexec)
+        set(_mms_gate_test
+            "ImmersX${${_build_type}_ctest_suffix}.validation.MetricFlowX.MMS")
         add_test(
-          NAME metric_flow_x_elastodynamics_mms_verification
+          NAME ${_mms_gate_test}
           COMMAND ${_immersx_mpiexec} -np 2
                   $<TARGET_FILE:${_mms_gate_target}>
                   --gtest_filter=OneVesselMMS.*:OneVesselMMSDriver.MPI_ActualTwoWayTransientSolve:MetricFlowXVesselWallConstraint.MPI_TwoWayResidualAndPressureSign:MetricFlowXVesselWallConstraint.MPI_TwoWayCompositionResidualSmoke:MetricFlowXVesselWallConstraint.MPI_GenericKinematicCompositionSmoke:MetricFlowXVesselWallConstraint.MPI_FullCoupledJacobianFiniteDifference)
-        set_tests_properties(metric_flow_x_elastodynamics_mms_verification
+        set_tests_properties(${_mms_gate_test}
                              PROPERTIES LABELS "validation;mpi"
                                         TIMEOUT 1200)
       endif()

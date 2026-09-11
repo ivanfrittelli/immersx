@@ -12,6 +12,15 @@ if(ImmersX_WITH_METRIC_FLOW_X)
   find_dependency(MetricFlowX CONFIG)
 endif()
 
+if(@IMMERSX_BUILD_BOTH_VARIANTS@)
+  # A DebugRelease build exports both concrete libraries with the build tree's
+  # single configuration. Map ordinary downstream single-config builds to
+  # that imported configuration; ImmersX::immersx then selects the matching
+  # library.
+  set(CMAKE_MAP_IMPORTED_CONFIG_DEBUG DebugRelease)
+  set(CMAKE_MAP_IMPORTED_CONFIG_RELEASE DebugRelease)
+endif()
+
 include("${CMAKE_CURRENT_LIST_DIR}/ImmersXTargets.cmake")
 
 set(ImmersX_VERSION "@PROJECT_VERSION@")
