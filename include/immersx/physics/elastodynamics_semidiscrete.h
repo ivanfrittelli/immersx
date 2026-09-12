@@ -123,7 +123,7 @@ namespace ImmersX
                damping, problem.velocity_constraints()))
       .derivative(
         velocity,
-        semidiscrete_detail::constrained_matrix_operator_with_identity(
+        semidiscrete_detail::constrained_matrix_operator(
           mass, problem.velocity_constraints()));
 
     return {displacement, velocity};
