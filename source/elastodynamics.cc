@@ -108,6 +108,9 @@ namespace ImmersX
     , displacement_boundary(normalize_elastodynamics_subsection(subsection) +
                               "Functions/Displacement boundary",
                             spacedim)
+    , neumann_boundary(normalize_elastodynamics_subsection(subsection) +
+                         "Functions/Neumann boundary",
+                       spacedim)
     , velocity_boundary(normalize_elastodynamics_subsection(subsection) +
                           "Functions/Velocity boundary",
                         spacedim)
@@ -130,6 +133,7 @@ namespace ImmersX
     add_parameter("Initial refinement", initial_refinement);
     add_parameter("Number of refinement cycles", n_refinement_cycles);
     add_parameter("Dirichlet boundary ids", dirichlet_ids);
+    add_parameter("Neumann boundary ids", neumann_ids);
 
     enter_subsection("Grid generation");
     {
@@ -169,6 +173,8 @@ namespace ImmersX
     body_force.declare_parameters_call_back.connect(
       declare_zero_vector_function);
     displacement_boundary.declare_parameters_call_back.connect(
+      declare_zero_vector_function);
+    neumann_boundary.declare_parameters_call_back.connect(
       declare_zero_vector_function);
     velocity_boundary.declare_parameters_call_back.connect(
       declare_zero_vector_function);
@@ -384,7 +390,8 @@ namespace ImmersX
 
   template <int dim, int spacedim>
   void
-  ElastodynamicsSolver<dim, spacedim>::update_constraints(const double time)
+  ElastodynamicsSolver<dim, spacedim>::update_constraints(
+    const double time) const
   {
     displacement_constraints_storage.clear();
     displacement_constraints_storage.reinit(owned_dofs, relevant_dofs);
@@ -552,7 +559,7 @@ namespace ImmersX
     AffineConstraints<double> no_constraints;
     no_constraints.close();
 
-    FEValues<dim, spacedim>          fe_values(*fe_storage,
+    FEValues<dim, spacedim> fe_values(*fe_storage,
                                       *quadrature,
                                       update_values | update_gradients |
                                         update_quadrature_points |
@@ -647,10 +654,14 @@ namespace ImmersX
 
     AffineConstraints<double> no_constraints;
     no_constraints.close();
-    FEValues<dim, spacedim>          fe_values(*fe_storage,
+    FEValues<dim, spacedim> fe_values(*fe_storage,
                                       *quadrature,
                                       update_values | update_quadrature_points |
                                         update_JxW_values);
+    FEFaceValues<dim, spacedim> fe_face_values(
+      *fe_storage,
+      QGauss<dim - 1>(par.fe_degree + 1),
+      update_values | update_quadrature_points | update_JxW_values);
     const FEValuesExtractors::Vector vector_field(0);
     const unsigned int          dofs_per_cell = fe_storage->n_dofs_per_cell();
     const unsigned int          n_q_points    = quadrature->size();
@@ -680,6 +691,35 @@ namespace ImmersX
                                                     local_dof_indices,
                                                     destination);
         }
+
+    par.neumann_boundary.set_time(time);
+    for (const auto &cell : dh.active_cell_iterators())
+      if (cell->is_locally_owned())
+        for (const auto face : cell->face_indices())
+          if (cell->face(face)->at_boundary() &&
+              par.neumann_ids.find(cell->face(face)->boundary_id()) !=
+                par.neumann_ids.end())
+            {
+              fe_face_values.reinit(cell, face);
+              std::vector<Vector<double>> values(
+                fe_face_values.n_quadrature_points, Vector<double>(spacedim));
+              par.neumann_boundary.vector_value_list(
+                fe_face_values.get_quadrature_points(), values);
+              cell_rhs = 0.;
+              for (unsigned int q = 0; q < fe_face_values.n_quadrature_points;
+                   ++q)
+                for (unsigned int i = 0; i < dofs_per_cell; ++i)
+                  {
+                    const auto component =
+                      fe_storage->system_to_component_index(i).first;
+                    cell_rhs(i) += fe_face_values.shape_value(i, q) *
+                                   values[q](component) * fe_face_values.JxW(q);
+                  }
+              cell->get_dof_indices(local_dof_indices);
+              no_constraints.distribute_local_to_global(cell_rhs,
+                                                        local_dof_indices,
+                                                        destination);
+            }
 
     destination.compress(VectorOperation::add);
   }
@@ -748,7 +788,7 @@ namespace ImmersX
     acceleration.reinit(owned_dofs, mpi_communicator);
     acceleration = 0.;
     SolverControl               control(par.solver_control.max_steps(),
-                          par.solver_control.tolerance());
+                                        par.solver_control.tolerance());
     LA::MPI::PreconditionJacobi preconditioner;
     preconditioner.initialize(constrained_mass);
     SolverGMRES<VectorType> solver(control);
@@ -773,7 +813,7 @@ namespace ImmersX
     locally_relevant_velocity = previous_velocity;
     locally_relevant_velocity.update_ghost_values();
 
-    FEValues<dim, spacedim>          fe_values(*fe_storage,
+    FEValues<dim, spacedim> fe_values(*fe_storage,
                                       *quadrature,
                                       update_values | update_gradients |
                                         update_quadrature_points |
@@ -792,7 +832,7 @@ namespace ImmersX
     std::vector<double>                  divergences(dofs_per_cell);
     std::vector<Tensor<1, spacedim>>     values(dofs_per_cell);
     std::vector<Vector<double>>          force_values(n_q_points,
-                                             Vector<double>(spacedim));
+                                                      Vector<double>(spacedim));
     std::vector<types::global_dof_index> spatial_indices(dofs_per_cell);
     std::vector<types::global_dof_index> combined_indices(2 * dofs_per_cell);
 

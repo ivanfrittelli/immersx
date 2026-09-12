@@ -94,6 +94,7 @@ namespace ImmersX
     unsigned int n_refinement_cycles = 1;
 
     std::set<dealii::types::boundary_id> dirichlet_ids{0};
+    std::set<dealii::types::boundary_id> neumann_ids;
     std::string                          name_of_grid       = "hyper_cube";
     std::string                          arguments_for_grid = "-1: 1: false";
     std::string                          triangulation_type = "distributed";
@@ -107,13 +108,22 @@ namespace ImmersX
     /** Canonical time-integration parameters used by this Problem. */
     TimeParameters &time_parameters;
 
-    /** Body force, displacement boundary data, and velocity boundary data. */
+    /** Body force and boundary data.
+     *
+     * `neumann_boundary` is a vector traction integrated against the test
+     * functions on `neumann_ids`. The supplied body force therefore follows
+     * the residual convention `M u_tt + K u + D u_t - f = 0`, with the
+     * boundary traction included in `f`.
+     */
     mutable dealii::ParameterAcceptorProxy<
       dealii::Functions::ParsedFunction<spacedim>>
       body_force;
     mutable dealii::ParameterAcceptorProxy<
       dealii::Functions::ParsedFunction<spacedim>>
       displacement_boundary;
+    mutable dealii::ParameterAcceptorProxy<
+      dealii::Functions::ParsedFunction<spacedim>>
+      neumann_boundary;
     mutable dealii::ParameterAcceptorProxy<
       dealii::Functions::ParsedFunction<spacedim>>
       velocity_boundary;
@@ -297,6 +307,10 @@ namespace ImmersX
     void
     body_force_at_time(double time, VectorType &destination) const;
 
+    /** Update time-dependent essential constraints without changing state. */
+    void
+    update_constraints(double time) const;
+
     /** Return the internal backward-Euler matrix from the last step. */
     const MatrixType &
     system_matrix() const;
@@ -340,9 +354,6 @@ namespace ImmersX
     uses_fully_distributed_triangulation() const;
 
     void
-    update_constraints(double time);
-
-    void
     assemble_body_force(double time);
 
     void
@@ -380,13 +391,13 @@ namespace ImmersX
     std::unique_ptr<dealii::Mapping<dim, spacedim>>       mapping_storage;
     dealii::DoFHandler<dim, spacedim>                     dh;
 
-    dealii::IndexSet                  owned_dofs;
-    dealii::IndexSet                  relevant_dofs;
-    dealii::IndexSet                  combined_owned_dofs;
-    dealii::IndexSet                  combined_relevant_dofs;
-    dealii::AffineConstraints<double> displacement_constraints_storage;
-    dealii::AffineConstraints<double> velocity_constraints_storage;
-    dealii::AffineConstraints<double> combined_constraints_storage;
+    dealii::IndexSet                          owned_dofs;
+    dealii::IndexSet                          relevant_dofs;
+    dealii::IndexSet                          combined_owned_dofs;
+    dealii::IndexSet                          combined_relevant_dofs;
+    mutable dealii::AffineConstraints<double> displacement_constraints_storage;
+    mutable dealii::AffineConstraints<double> velocity_constraints_storage;
+    mutable dealii::AffineConstraints<double> combined_constraints_storage;
 
     MatrixType mass_matrix_storage;
     MatrixType stiffness_matrix_storage;

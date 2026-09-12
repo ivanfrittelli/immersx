@@ -67,15 +67,10 @@ namespace
         (void)state_dot;
       });
 
-    auto state                                         = adapter.make_state();
-    auto state_dot                                     = adapter.make_state();
-    adapter.field(state, fields.fields().displacement) = problem.displacement();
-    adapter.field(state, fields.fields().velocity)     = problem.velocity();
-    adapter.field(state_dot, fields.fields().displacement) = problem.velocity();
-
-    FieldVector acceleration;
-    problem.initial_acceleration(acceleration);
-    adapter.field(state_dot, fields.fields().velocity) = acceleration;
+    auto state     = adapter.make_state();
+    auto state_dot = adapter.make_state();
+    initialize_elastodynamics_adapter_state(
+      adapter, fields, problem, state, state_dot);
 
     adapter.solve(state, state_dot);
   }
