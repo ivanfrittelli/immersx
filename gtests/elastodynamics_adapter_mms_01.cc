@@ -14,8 +14,6 @@
 
 #include <deal.II/dofs/dof_tools.h>
 
-#include <deal.II/grid/grid_tools.h>
-
 #include <deal.II/numerics/vector_tools.h>
 
 #include <gtest/gtest.h>
@@ -112,7 +110,7 @@ namespace
                                              support_points);
         for (const auto index : problem.locally_owned_dofs())
           if (problem.constraints().is_constrained(index) &&
-              problem.constraints().get_constraint_entries(index).empty())
+              problem.constraints().get_constraint_entries(index)->empty())
             {
               const auto component =
                 problem.fe().system_to_component_index(index).first;
@@ -126,7 +124,7 @@ namespace
     return {l2_displacement,
             h1_displacement,
             l2_velocity,
-            GridTools::minimal_cell_diameter(problem.triangulation()),
+            problem.triangulation().begin_active()->diameter(),
             static_cast<unsigned int>(problem.n_dofs()),
             problem.triangulation().n_active_cells()};
   }
