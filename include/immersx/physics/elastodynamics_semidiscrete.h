@@ -96,8 +96,8 @@ namespace ImmersX
         problem.update_constraints(context.time());
         const auto &v_dot  = context.derivative(velocity);
         auto        result = mass.view * v_dot +
-                             stiffness.view * context.state(displacement) +
-                             damping.view * context.state(velocity);
+                      stiffness.view * context.state(displacement) +
+                      damping.view * context.state(velocity);
         typename SemiDiscreteModel<VectorType>::Operation forcing;
         forcing.reinit_vector = [v_dot](VectorType &vector, const bool omit) {
           vector.reinit(v_dot, omit);

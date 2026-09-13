@@ -559,7 +559,7 @@ namespace ImmersX
     AffineConstraints<double> no_constraints;
     no_constraints.close();
 
-    FEValues<dim, spacedim> fe_values(*fe_storage,
+    FEValues<dim, spacedim>          fe_values(*fe_storage,
                                       *quadrature,
                                       update_values | update_gradients |
                                         update_quadrature_points |
@@ -654,7 +654,7 @@ namespace ImmersX
 
     AffineConstraints<double> no_constraints;
     no_constraints.close();
-    FEValues<dim, spacedim> fe_values(*fe_storage,
+    FEValues<dim, spacedim>     fe_values(*fe_storage,
                                       *quadrature,
                                       update_values | update_quadrature_points |
                                         update_JxW_values);
@@ -788,7 +788,7 @@ namespace ImmersX
     acceleration.reinit(owned_dofs, mpi_communicator);
     acceleration = 0.;
     SolverControl               control(par.solver_control.max_steps(),
-                                        par.solver_control.tolerance());
+                          par.solver_control.tolerance());
     LA::MPI::PreconditionJacobi preconditioner;
     preconditioner.initialize(constrained_mass);
     SolverGMRES<VectorType> solver(control);
@@ -813,7 +813,7 @@ namespace ImmersX
     locally_relevant_velocity = previous_velocity;
     locally_relevant_velocity.update_ghost_values();
 
-    FEValues<dim, spacedim> fe_values(*fe_storage,
+    FEValues<dim, spacedim>          fe_values(*fe_storage,
                                       *quadrature,
                                       update_values | update_gradients |
                                         update_quadrature_points |
@@ -832,7 +832,7 @@ namespace ImmersX
     std::vector<double>                  divergences(dofs_per_cell);
     std::vector<Tensor<1, spacedim>>     values(dofs_per_cell);
     std::vector<Vector<double>>          force_values(n_q_points,
-                                                      Vector<double>(spacedim));
+                                             Vector<double>(spacedim));
     std::vector<types::global_dof_index> spatial_indices(dofs_per_cell);
     std::vector<types::global_dof_index> combined_indices(2 * dofs_per_cell);
 

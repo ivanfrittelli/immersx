@@ -861,7 +861,7 @@ namespace ImmersX::detail
         };
       result.reinit_domain_vector = result.reinit_range_vector;
       result.vmult                = [apply](GlobalVectorType       &dst,
-                                            const GlobalVectorType &src) {
+                             const GlobalVectorType &src) {
         apply(dst, src, false);
       };
       result.vmult_add = [apply,
@@ -1133,13 +1133,13 @@ namespace ImmersX::detail
                 const auto row_field = metadata.participants[i];
                 const auto col_field = metadata.participants[j];
                 const auto from      = materialized_block(row_field,
-                                                          metadata.multiplier,
-                                                          context,
-                                                          alpha);
+                                                     metadata.multiplier,
+                                                     context,
+                                                     alpha);
                 const auto to        = materialized_block(metadata.multiplier,
-                                                          col_field,
-                                                          context,
-                                                          alpha);
+                                                   col_field,
+                                                   context,
+                                                   alpha);
                 AssertThrow(from && to,
                             dealii::ExcMessage(
                               "Matrix-based augmented-Lagrangian composition "
@@ -1283,7 +1283,7 @@ namespace ImmersX::detail
       const auto primal_vmult_add  = primal_inverse.vmult_add;
       const auto primal_Tvmult     = primal_inverse.Tvmult;
       const auto primal_Tvmult_add = primal_inverse.Tvmult_add;
-      primal_inverse.vmult = [primal_matrix,
+      primal_inverse.vmult         = [primal_matrix,
                               primal_vmult](FieldVectorType       &dst,
                                             const FieldVectorType &src) {
         primal_vmult(dst, src);
@@ -1451,7 +1451,7 @@ namespace ImmersX::detail
         };
       result.reinit_domain_vector = result.reinit_range_vector;
       result.vmult                = [apply](GlobalVectorType       &dst,
-                                            const GlobalVectorType &src) {
+                             const GlobalVectorType &src) {
         apply(dst, src, false);
       };
       result.vmult_add = [apply, vector_memory](GlobalVectorType       &dst,
@@ -1571,7 +1571,7 @@ namespace ImmersX::detail
       const auto vmult_add  = result.vmult_add;
       const auto Tvmult     = result.Tvmult;
       const auto Tvmult_add = result.Tvmult_add;
-      result.vmult = [empty_matrix, vmult](FieldVectorType       &dst,
+      result.vmult          = [empty_matrix, vmult](FieldVectorType       &dst,
                                            const FieldVectorType &src) {
         vmult(dst, src);
       };
@@ -1831,7 +1831,7 @@ namespace ImmersX::detail
         };
       result.reinit_domain_vector = result.reinit_range_vector;
       result.vmult                = [apply](GlobalVectorType       &destination,
-                                            const GlobalVectorType &source) {
+                             const GlobalVectorType &source) {
         apply(destination, source, false);
       };
       result.vmult_add = [apply,
@@ -2065,9 +2065,9 @@ namespace ImmersX::detail
         for (unsigned int j = 0; j < n; ++j)
           {
             auto  matrix = materialized_block(field_layout_.field(i),
-                                              field_layout_.field(j),
-                                              context,
-                                              alpha);
+                                             field_layout_.field(j),
+                                             context,
+                                             alpha);
             auto &block  = result.block(i, j);
             if (matrix)
               {

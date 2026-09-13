@@ -251,11 +251,11 @@ TEST(Elastodynamics, IDAResidualAndJacobianOracle)
   time_parameters.initial_time = 0.;
   time_parameters.final_time   = 0.01;
   Adapter    ida(time_parameters,
-                 MPI_COMM_WORLD,
-                 [](const dealii::LinearOperator<GlobalVector> &,
-                    const GlobalVector &,
-                    GlobalVector &,
-                    const double) {});
+              MPI_COMM_WORLD,
+              [](const dealii::LinearOperator<GlobalVector> &,
+                 const GlobalVector &,
+                 GlobalVector &,
+                 const double) {});
   const auto fields = ida.add(problem, "solid");
 
   auto state                                         = ida.make_state();
