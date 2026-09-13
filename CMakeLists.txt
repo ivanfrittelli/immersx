@@ -72,62 +72,7 @@ endif()
 
 find_package(deal.II 9.7.1 REQUIRED
   HINTS ${deal.II_DIR} ${DEAL_II_DIR} ../ ../../ $ENV{DEAL_II_DIR})
-
-# deal.II uses CMAKE_BUILD_TYPE to select its package configuration, while
-# ImmersX uses a single-config build tree to materialize one or both of the
-# concrete deal.II variants. Validate the user-facing value before deal.II's
-# initialization macro has an opportunity to replace an unsupported value.
-set(_immersx_input_build_type "${CMAKE_BUILD_TYPE}")
-if(_immersx_input_build_type AND
-   NOT _immersx_input_build_type STREQUAL "Debug" AND
-   NOT _immersx_input_build_type STREQUAL "Release" AND
-   NOT _immersx_input_build_type STREQUAL "DebugRelease")
-  message(FATAL_ERROR
-    "Unsupported CMAKE_BUILD_TYPE \"${_immersx_input_build_type}\". "
-    "ImmersX supports Debug, Release, and DebugRelease.")
-endif()
-
 DEAL_II_INITIALIZE_CACHED_VARIABLES()
-
-if(_immersx_input_build_type)
-  set(_immersx_effective_build_type "${_immersx_input_build_type}")
-else()
-  set(_immersx_effective_build_type "${CMAKE_BUILD_TYPE}")
-endif()
-
-if(_immersx_effective_build_type STREQUAL "Debug")
-  set(IMMERSX_REQUESTED_BUILD_TYPES Debug)
-elseif(_immersx_effective_build_type STREQUAL "Release")
-  set(IMMERSX_REQUESTED_BUILD_TYPES Release)
-elseif(_immersx_effective_build_type STREQUAL "DebugRelease")
-  set(IMMERSX_REQUESTED_BUILD_TYPES Release Debug)
-else()
-  message(FATAL_ERROR
-    "Could not determine an ImmersX build variant from CMAKE_BUILD_TYPE "
-    "\"${CMAKE_BUILD_TYPE}\". ImmersX supports Debug, Release, and "
-    "DebugRelease.")
-endif()
-
-foreach(_build_type IN LISTS IMMERSX_REQUESTED_BUILD_TYPES)
-  string(TOUPPER "${_build_type}" _build_type_upper)
-  list(FIND DEAL_II_BUILD_TYPES "${_build_type_upper}" _deal_ii_build_type_index)
-  if(_deal_ii_build_type_index EQUAL -1)
-    message(FATAL_ERROR
-      "ImmersX was asked to build its ${_build_type} variant, but the "
-      "selected deal.II installation does not provide ${_build_type}. "
-      "Available deal.II variants: ${DEAL_II_BUILD_TYPES}.")
-  endif()
-endforeach()
-
-list(LENGTH IMMERSX_REQUESTED_BUILD_TYPES _immersx_requested_build_type_count)
-set(IMMERSX_BUILD_BOTH_VARIANTS OFF)
-set(Release_ctest_suffix "")
-set(Debug_ctest_suffix "")
-if(_immersx_requested_build_type_count EQUAL 2)
-  set(IMMERSX_BUILD_BOTH_VARIANTS ON)
-  set(Release_ctest_suffix ".Release")
-  set(Debug_ctest_suffix ".Debug")
-endif()
 
 # MetricFlowX is an optional public dependency.  Treat a package that reports
 # itself as found but does not provide its public target as unusable.
@@ -136,29 +81,16 @@ find_package(MetricFlowX CONFIG QUIET)
 if(MetricFlowX_FOUND AND TARGET MetricFlowX::metric_flow_x)
   get_target_property(_metric_flow_x_imported_configs
     MetricFlowX::metric_flow_x IMPORTED_CONFIGURATIONS)
-  set(_metric_flow_x_compatible ON)
-  if(_metric_flow_x_imported_configs AND
-     NOT _metric_flow_x_imported_configs MATCHES "-NOTFOUND$")
-    set(_metric_flow_x_available_configs)
-    foreach(_metric_flow_x_config IN LISTS _metric_flow_x_imported_configs)
-      string(TOUPPER "${_metric_flow_x_config}" _metric_flow_x_config_upper)
-      list(APPEND _metric_flow_x_available_configs
-           "${_metric_flow_x_config_upper}")
-    endforeach()
-    foreach(_build_type IN LISTS IMMERSX_REQUESTED_BUILD_TYPES)
-      string(TOUPPER "${_build_type}" _build_type_upper)
-      if(NOT _build_type_upper IN_LIST _metric_flow_x_available_configs)
-        set(_metric_flow_x_compatible OFF)
-      endif()
-    endforeach()
-  endif()
-  if(_metric_flow_x_compatible)
+  string(TOUPPER "${CMAKE_BUILD_TYPE}" _metric_flow_x_build_type)
+  if(NOT _metric_flow_x_imported_configs OR
+     NOT _metric_flow_x_build_type OR
+     _metric_flow_x_build_type IN_LIST _metric_flow_x_imported_configs)
     set(IMMERSX_WITH_METRIC_FLOW_X ON)
     message(STATUS "MetricFlowX support enabled")
   else()
     message(STATUS
-      "MetricFlowX support disabled (package does not provide all requested "
-      "Debug/Release configurations)")
+      "MetricFlowX support disabled (package has no "
+      "${CMAKE_BUILD_TYPE} configuration)")
   endif()
 elseif(MetricFlowX_FOUND)
   message(WARNING
@@ -281,8 +213,9 @@ FOREACH(_build_type ${_d2_build_types})
   # Postfix to use everywhere
   SET(_p "${${_build_type}_postfix}")
   #MESSAGE(${_build_type})
-  # Only build requested variants that are provided by deal.II.
-  IF(_build_type IN_LIST IMMERSX_REQUESTED_BUILD_TYPES)
+  # Only build this type, if deal.II was compiled with it.
+  IF(CMAKE_BUILD_TYPE MATCHES "${_build_type}" AND
+      DEAL_II_BUILD_TYPE MATCHES "${_build_type}")
       
       MESSAGE("-- Found ${_build_type} version of deal.II.")
 
@@ -298,12 +231,7 @@ FOREACH(_build_type ${_d2_build_types})
         SET(_immersx_library_type SHARED)
       ENDIF()
       ADD_LIBRARY(${_lib} ${_immersx_library_type} ${_files})
-      IF(IMMERSX_BUILD_BOTH_VARIANTS)
-        SET_TARGET_PROPERTIES(${_lib} PROPERTIES
-          EXPORT_NAME immersx_${_build_type})
-      ELSE()
-        SET_TARGET_PROPERTIES(${_lib} PROPERTIES EXPORT_NAME immersx)
-      ENDIF()
+      SET_TARGET_PROPERTIES(${_lib} PROPERTIES EXPORT_NAME immersx)
       LIST(APPEND IMMERSX_LIBRARY_TARGETS ${_lib})
       TARGET_INCLUDE_DIRECTORIES(${_lib}
         PUBLIC
@@ -394,21 +322,6 @@ FOREACH(_build_type ${_d2_build_types})
   ENDIF()
 ENDFOREACH()
 
-# A DebugRelease installation contains two concrete libraries. Export both
-# under unique names and expose the usual ImmersX::immersx target as a small
-# configuration-aware selector for downstream single-config consumers.
-SET(IMMERSX_EXPORT_TARGETS ${IMMERSX_LIBRARY_TARGETS})
-IF(IMMERSX_BUILD_BOTH_VARIANTS)
-  ADD_LIBRARY(immersx_package INTERFACE)
-  TARGET_LINK_LIBRARIES(immersx_package INTERFACE
-    "$<BUILD_INTERFACE:$<$<CONFIG:Debug>:immersx_lib_debug>>"
-    "$<BUILD_INTERFACE:$<$<NOT:$<CONFIG:Debug>>:immersx_lib>>"
-    "$<INSTALL_INTERFACE:$<$<CONFIG:Debug>:ImmersX::immersx_Debug>>"
-    "$<INSTALL_INTERFACE:$<$<NOT:$<CONFIG:Debug>>:ImmersX::immersx_Release>>")
-  SET_TARGET_PROPERTIES(immersx_package PROPERTIES EXPORT_NAME immersx)
-  LIST(APPEND IMMERSX_EXPORT_TARGETS immersx_package)
-ENDIF()
-
 # Register CTest before adding test subdirectories so their add_test() calls
 # are included in the top-level test manifest.
 ENABLE_TESTING()
@@ -422,6 +335,14 @@ ENDIF()
 IF(ENABLE_GOOGLE_TESTING)
   find_package(GTest)
   if (GTest_FOUND)
+      # Recent GTest packages expose imported targets instead of the legacy
+      # GTEST_* cache variables used by the test subdirectory.
+      if (TARGET GTest::gtest)
+        set(GTEST_LIBRARIES GTest::gtest)
+      endif()
+      if (TARGET GTest::gtest_main)
+        set(GTEST_MAIN_LIBRARY GTest::gtest_main)
+      endif()
       ADD_SUBDIRECTORY(gtests)
   else ()
       MESSAGE(WARNING "GTest library not found. Tests will not be compiled!")
@@ -430,7 +351,7 @@ ENDIF()
 
 # Installation and downstream package metadata.
 IF(IMMERSX_LIBRARY_TARGETS)
-  INSTALL(TARGETS ${IMMERSX_EXPORT_TARGETS}
+  INSTALL(TARGETS ${IMMERSX_LIBRARY_TARGETS}
     EXPORT ImmersXTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

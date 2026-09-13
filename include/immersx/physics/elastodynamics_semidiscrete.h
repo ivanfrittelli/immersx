@@ -60,7 +60,6 @@ namespace ImmersX
       ImmersX::matrix_operator<VectorType>(problem.stiffness_matrix());
     const auto damping =
       ImmersX::matrix_operator<VectorType>(problem.damping_matrix());
-
     builder.preconditioner(
       displacement, [](const auto &linearized_matrix, const auto &prototype) {
         return make_amg_preconditioner(linearized_matrix, prototype);
@@ -83,10 +82,12 @@ namespace ImmersX
       .state(velocity,
              semidiscrete_detail::constrained_matrix_operator(
                -1. * mass, problem.constraints()))
-      .derivative(
-        displacement,
-        semidiscrete_detail::constrained_matrix_operator_with_identity(
-          mass, problem.constraints()));
+      .state(displacement,
+             semidiscrete_detail::constrained_matrix_identity_operator(
+               mass, problem.constraints()))
+      .derivative(displacement,
+                  semidiscrete_detail::constrained_matrix_operator(
+                    mass, problem.constraints()));
 
     auto dynamics = builder.term(velocity, "dynamics");
     dynamics
@@ -121,10 +122,9 @@ namespace ImmersX
       .state(velocity,
              semidiscrete_detail::constrained_matrix_operator_with_identity(
                damping, problem.velocity_constraints()))
-      .derivative(
-        velocity,
-        semidiscrete_detail::constrained_matrix_operator(
-          mass, problem.velocity_constraints()));
+      .derivative(velocity,
+                  semidiscrete_detail::constrained_matrix_operator(
+                    mass, problem.velocity_constraints()));
 
     return {displacement, velocity};
   }

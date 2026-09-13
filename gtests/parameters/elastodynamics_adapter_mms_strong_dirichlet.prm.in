@@ -43,7 +43,7 @@ subsection Elastodynamics
   subsection Functions
     subsection Body force
       set Function constants =
-      set Function expression = -2*x^2 - 12*x*y + 8*x - 8*y^2 + 14*y + 3*pi^2*sin(5*pi*t/2)*sin(pi*x)*cos(pi*y) - 5*pi^2*sin(pi*x)*sin(pi*y)*cos(5*pi*t/2)/4 - 3; -8*x^2 - 12*x*y + 14*x - 2*y^2 + 8*y + 5*pi^2*sin(5*pi*t/2)*sin(pi*y)*cos(pi*x) - 5*pi^2*sin(5*pi*t/2)*sin(pi*y)*cos(pi*x)/4 - 3*pi^2*cos(5*pi*t/2)*cos(pi*x)*cos(pi*y) - 3
+      set Function expression = -2*x^2 - 12*x*y + 8*x - 8*y^2 + 14*y + 3*pi^2*sin(5*pi*t/2)*sin(pi*x)*cos(pi*y) - 5*pi^2*sin(pi*x)*sin(pi*y)*cos(5*pi*t/2)/4 - 3; -8*x^2 - 12*x*y + 14*x - 2*y^2 + 8*y - 5*pi^2*sin(5*pi*t/2)*sin(pi*y)*cos(pi*x)/4 - 3*pi^2*cos(5*pi*t/2)*cos(pi*x)*cos(pi*y) - 3
       set Variable names = x,y,t
     end
     subsection Displacement boundary
