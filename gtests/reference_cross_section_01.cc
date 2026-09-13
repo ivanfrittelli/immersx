@@ -186,9 +186,8 @@ TEST(ReferenceFrame, RotationInvariants3D) // NOLINT
 
 TEST(ReferenceFrame, RotationInvariants2D) // NOLINT
 {
-  const std::array<Tensor<1, 2>, 3> tangents = {{Tensor<1, 2>({0., 1.}),
-                                                 Tensor<1, 2>({1., 0.}),
-                                                 Tensor<1, 2>({0., -1.})}};
+  const std::array<Tensor<1, 2>, 3> tangents = {
+    {Tensor<1, 2>({0., 1.}), Tensor<1, 2>({1., 0.}), Tensor<1, 2>({0., -1.})}};
 
   for (const auto &tangent : tangents)
     {
@@ -327,4 +326,3 @@ TEST(ReferenceCrossSection, CheckHyperSphereQuadrature) // NOLINT
   par.inclusion_degree = degree;
   par.inclusion_type   = "hyper_sphere";
   par.refinement_level = 5;
-
