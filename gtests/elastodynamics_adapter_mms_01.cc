@@ -119,9 +119,11 @@ namespace
           {
             if (final_constraints.is_constrained(index) &&
                 final_constraints.get_constraint_entries(index)->empty())
-              EXPECT_NEAR(state.block(0)(index),
-                          final_constraints.get_inhomogeneity(index),
-                          1.e-7);
+              {
+                EXPECT_NEAR(state.block(0)(index),
+                            final_constraints.get_inhomogeneity(index),
+                            1.e-7);
+              }
           }
       }
 
