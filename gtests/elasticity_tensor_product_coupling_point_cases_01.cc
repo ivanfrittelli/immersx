@@ -119,8 +119,8 @@ namespace
         return {};
       }
     assert_tensor_product_solution(problem);
-    return {problem.solution.block(0).l2_norm(),
-            problem.solution.block(1).l2_norm()};
+    return {{problem.solution.block(0).l2_norm(),
+             problem.solution.block(1).l2_norm()}};
   }
 
   void
@@ -258,82 +258,3 @@ TEST_P(ElasticityTensorProductCouplingTriangulationTypeTest,
   ElasticityProblemParameters<3> par;
   set_tensor_product_defaults(par,
                               "tensor_product_displacement_vtk_centerline",
-                              {"1", "0", "0"});
-  par.triangulation_type                  = current_triangulation_type(*this);
-  par.default_material_properties.Lame_mu = 2.0;
-  par.default_material_properties.Lame_lambda = 50.0;
-  run_tensor_product_case(par);
-}
-
-TEST_P(ElasticityTensorProductCouplingTriangulationTypeTest,
-       MPI_DisplacementAlongVtkCenterlineWithSegmentClustering)
-{
-  ParameterAcceptor::clear();
-  ElasticityProblemParameters<3> par;
-  set_tensor_product_defaults(
-    par,
-    "tensor_product_displacement_vtk_centerline_segments",
-    {"1", "0", "0"});
-  par.triangulation_type                  = current_triangulation_type(*this);
-  par.default_material_properties.Lame_mu = 2.0;
-  par.default_material_properties.Lame_lambda = 50.0;
-  run_tensor_product_case(par);
-}
-
-TEST(ElasticityTensorProductCouplingValidation,
-     DISABLED_DisplacementAlongVtkCenterlineWithSegmentClustering)
-{
-  ParameterAcceptor::clear();
-  ElasticityProblemParameters<3> par;
-  set_tensor_product_defaults(
-    par,
-    "tensor_product_displacement_vtk_centerline_segments_serial",
-    {"1", "0", "0"});
-  par.triangulation_type                      = "distributed";
-  par.default_material_properties.Lame_mu     = 2.0;
-  par.default_material_properties.Lame_lambda = 50.0;
-  run_tensor_product_case(par);
-}
-
-TEST(ElasticityTensorProductCouplingValidation, ExactLambdaSingleSolve)
-{
-  ParameterAcceptor::clear();
-  ElasticityProblemParameters<2, 3> par;
-  set_tensor_product_defaults(par,
-                              "tensor_product_exact_lambda_single_solve",
-                              {"0", "1", "0"});
-  par.triangulation_type = "distributed";
-  run_tensor_product_case(par);
-}
-
-TEST_P(ElasticityTensorProductCouplingTriangulationTypeTest,
-       MPI_TwoSegmentsInCell)
-{
-  ParameterAcceptor::clear();
-  ElasticityProblemParameters<3> par;
-  set_tensor_product_defaults(par,
-                              "tensor_product_two_segments_in_cell",
-                              {"0.1", "0.2", "0.3"});
-  par.triangulation_type = current_triangulation_type(*this);
-  run_tensor_product_case(par);
-}
-
-TEST_P(ElasticityTensorProductCouplingTriangulationTypeTest,
-       MPI_MultipleSegmentsInCell)
-{
-  ParameterAcceptor::clear();
-  ElasticityProblemParameters<3> par;
-  set_tensor_product_defaults(par,
-                              "tensor_product_multiple_segments_in_cell",
-                              {"0.1", "0.2", "0.3"});
-  par.triangulation_type                  = current_triangulation_type(*this);
-  par.default_material_properties.Lame_mu = 2.0;
-  par.default_material_properties.Lame_lambda = 50.0;
-  run_tensor_product_case(par);
-}
-
-INSTANTIATE_TEST_SUITE_P(TriangulationBackendsValidation,
-                         ElasticityTensorProductCouplingTriangulationTypeTest,
-                         ::testing::Values("distributed"));
-
-#endif // DEAL_II_WITH_VTK
