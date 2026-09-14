@@ -16,6 +16,8 @@
 
 #include <vector>
 
+#include "test_paths.h"
+
 using namespace ImmersX;
 #include <immersx/io/utils.h>
 
@@ -30,8 +32,8 @@ TEST(NavierStokes, Step80ManufacturedSolutionConvergence)
 
   ParameterAcceptor::clear();
   NavierStokesParameters<dim, spacedim> parameters;
-  initialize_parameters(SOURCE_DIR
-                        "/gtests/parameters/navier_stokes_step80_mms_2d.prm");
+  initialize_parameters(TestPaths::parameter_path(
+    "gtests/parameters/navier_stokes_step80_mms_2d.prm"));
 
   const std::vector<unsigned int> levels = {2, 3, 4};
 
