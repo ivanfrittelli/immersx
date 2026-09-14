@@ -63,6 +63,7 @@ set(IMMERSX_VALIDATION_TEST_SUITES
     ElastodynamicsValidation
     ElastodynamicsExecutionValidation
     ElastodynamicsDimensionValidation
+    ElastodynamicsAdapterMMS
     FiberReinforcedElastodynamicsValidation
     LargeNetworksValidation
     ElasticityCouplingIntegrationValidation
@@ -125,6 +126,7 @@ set(_immersx_expected_test_suites
     ElastodynamicsValidation
     ElastodynamicsExecutionValidation
     ElastodynamicsDimensionValidation
+    ElastodynamicsAdapterMMS
     FESpace
     TimeParameters
     FiberReinforcedElastodynamicsValidation

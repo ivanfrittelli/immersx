@@ -147,10 +147,10 @@ TEST(ReferenceCrossSection, CheckDiskQuadrature) // NOLINT
 
 TEST(ReferenceFrame, RotationInvariants3D) // NOLINT
 {
-  const std::array<Tensor<1, 3>, 4> tangents = {Tensor<1, 3>({0., 0., 1.}),
-                                                Tensor<1, 3>({1., 0., 0.}),
-                                                Tensor<1, 3>({0., 0., -1.}),
-                                                Tensor<1, 3>({1., 2., 2.})};
+  const std::array<Tensor<1, 3>, 4> tangents = {{Tensor<1, 3>({0., 0., 1.}),
+                                                 Tensor<1, 3>({1., 0., 0.}),
+                                                 Tensor<1, 3>({0., 0., -1.}),
+                                                 Tensor<1, 3>({1., 2., 2.})}};
 
   for (const auto &tangent : tangents)
     {
@@ -186,9 +186,8 @@ TEST(ReferenceFrame, RotationInvariants3D) // NOLINT
 
 TEST(ReferenceFrame, RotationInvariants2D) // NOLINT
 {
-  const std::array<Tensor<1, 2>, 3> tangents = {Tensor<1, 2>({0., 1.}),
-                                                Tensor<1, 2>({1., 0.}),
-                                                Tensor<1, 2>({0., -1.})};
+  const std::array<Tensor<1, 2>, 3> tangents = {
+    {Tensor<1, 2>({0., 1.}), Tensor<1, 2>({1., 0.}), Tensor<1, 2>({0., -1.})}};
 
   for (const auto &tangent : tangents)
     {
@@ -272,10 +271,10 @@ TEST(TensorProductLift, RotationAwareVectorModes) // NOLINT
   lift.section.selected_coefficients = {2};
   TensorProductLiftSupport<1, 2, 3, 3> support(lift.parameters());
 
-  const std::array<Tensor<1, 3>, 4> tangents = {Tensor<1, 3>({0., 0., 1.}),
-                                                Tensor<1, 3>({1., 0., 0.}),
-                                                Tensor<1, 3>({0., 0., -1.}),
-                                                Tensor<1, 3>({1., 2., 2.})};
+  const std::array<Tensor<1, 3>, 4> tangents = {{Tensor<1, 3>({0., 0., 1.}),
+                                                 Tensor<1, 3>({1., 0., 0.}),
+                                                 Tensor<1, 3>({0., 0., -1.}),
+                                                 Tensor<1, 3>({1., 2., 2.})}};
 
   for (const auto &tangent : tangents)
     {

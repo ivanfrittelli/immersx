@@ -1,0 +1,103 @@
+set dimension = 2
+set space dimension = 2
+
+subsection Elastodynamics
+  set FE degree = 1
+  set Output directory = @TEST_OUTPUT_DIR@/elastodynamics-adapter-mms/neumann
+  set Output name = neumann
+  set Initial refinement = 1
+  set Number of refinement cycles = 3
+  set Dirichlet boundary ids = 0, 2, 3
+  set Neumann boundary ids = 1
+
+  subsection Grid generation
+    set Grid generator = hyper_cube
+    set Grid generator arguments = 0: 1: true
+    set Triangulation type = distributed
+  end
+
+  subsection Material
+    set Density = 1.0
+    set Lame mu = 1.0
+    set Lame lambda = 2.0
+    set Damping shear = 0.0
+    set Damping bulk = 0.0
+  end
+
+  subsection Time parameters
+    set Initial time = 0.0
+    set Final time = 0.13
+    set Time step = 0.01
+    set Number of time steps = 0
+    set Output frequency = 1
+    set Policy = fixed
+    subsection Running parameters
+      set Initial step size = 0.005
+      set Maximum order of BDF = 2
+    end
+    subsection Error control
+      set Absolute error tolerance = 1.e-6
+      set Relative error tolerance = 1.e-6
+    end
+  end
+
+  subsection Functions
+    subsection Body force
+      set Function constants =
+      set Function expression = -2*x^2 - 12*x*y + 8*x - 8*y^2 + 14*y + 5*pi^2*sin(pi*x)*sin(pi*y) + 3*pi^2*sin(pi*x)*cos(pi*y) - 3; -8*x^2 - 12*x*y + 14*x - 2*y^2 + 8*y + 5*pi^2*sin(pi*y)*cos(pi*x) - 3*pi^2*cos(pi*x)*cos(pi*y) - 3
+      set Variable names = x,y,t
+    end
+    subsection Displacement boundary
+      set Function constants =
+      set Function expression = x*y*(x - 1)*(y - 1) + sin(pi*x)*sin(pi*y); x*y*(x - 1)*(y - 1) + sin(pi*y)*cos(pi*x)
+      set Variable names = x,y,t
+    end
+    subsection Neumann boundary
+      set Function constants =
+      set Function expression = 4*x^2*y - 2*x^2 + 8*x*y^2 - 12*x*y + 2*x - 4*y^2 + 4*y + 4*pi*sin(pi*y)*cos(pi*x) + 2*pi*cos(pi*x)*cos(pi*y); 2*x^2*y - x^2 + 2*x*y^2 - 4*x*y + x - y^2 + y + sqrt(2)*pi*sin(pi*x)*cos(pi*(y + 1/4))
+      set Variable names = x,y,t
+    end
+    subsection Velocity boundary
+      set Function constants =
+      set Function expression = 0; 0
+      set Variable names = x,y,t
+    end
+    subsection Initial displacement
+      set Function constants =
+      set Function expression = x*y*(x - 1)*(y - 1) + sin(pi*x)*sin(pi*y); x*y*(x - 1)*(y - 1) + sin(pi*y)*cos(pi*x)
+      set Variable names = x,y,t
+    end
+    subsection Initial velocity
+      set Function constants =
+      set Function expression = 0; 0
+      set Variable names = x,y,t
+    end
+    subsection Exact solution
+      set Function constants =
+      set Function expression = x*y*(x - 1)*(y - 1) + sin(pi*x)*sin(pi*y); x*y*(x - 1)*(y - 1) + sin(pi*y)*cos(pi*x)
+      set Variable names = x,y,t
+    end
+  end
+
+  subsection Solver
+    subsection Control
+      set Log frequency = 0
+      set Log history = false
+      set Log result = false
+      set Max steps = 5000
+      set Reduction = 1.e-7
+      set Tolerance = 1.e-7
+    end
+  end
+end
+
+subsection Error
+  set Enable computation of the errors = true
+  set Error file name                  = @TEST_OUTPUT_DIR@/elastodynamics-adapter-mms/neumann/errors.txt
+  set Error precision                  = 8
+  set Exponent for p-norms             = 2
+  set Extra columns                    = cells, dofs
+  set List of error norms to compute   = L2_norm, Linfty_norm, H1_norm
+  set Rate key                         = dofs
+  set Rate mode                        = reduction_rate_log2
+end

@@ -48,6 +48,36 @@ namespace ImmersX
     }
 
     template <typename VectorType>
+    dealii::PackagedOperation<VectorType>
+    constrained_residual(dealii::PackagedOperation<VectorType>    operation,
+                         const VectorType                        &state,
+                         const dealii::AffineConstraints<double> &constraints)
+    {
+      dealii::PackagedOperation<VectorType> result;
+      result.reinit_vector = operation.reinit_vector;
+      result.apply =
+        [operation, &state, &constraints](VectorType &destination) {
+          operation.apply(destination);
+          for (const auto index : destination.locally_owned_elements())
+            if (constraints.is_constrained(index))
+              destination(index) =
+                state(index) - constraints.get_inhomogeneity(index);
+        };
+      result.apply_add =
+        [operation, &state, &constraints](VectorType &destination) {
+          VectorType contribution;
+          operation.reinit_vector(contribution, false);
+          operation.apply(contribution);
+          for (const auto index : contribution.locally_owned_elements())
+            if (constraints.is_constrained(index))
+              contribution(index) =
+                state(index) - constraints.get_inhomogeneity(index);
+          destination += contribution;
+        };
+      return result;
+    }
+
+    template <typename VectorType>
     dealii::LinearOperator<VectorType, VectorType>
     constrained_operator(
       const dealii::LinearOperator<VectorType, VectorType> &operator_view,
@@ -96,6 +126,61 @@ namespace ImmersX
       return result;
     }
 
+    template <typename VectorType>
+    dealii::LinearOperator<VectorType, VectorType>
+    constrained_operator_with_identity(
+      const dealii::LinearOperator<VectorType, VectorType> &operator_view,
+      const dealii::AffineConstraints<double>              &constraints)
+    {
+      auto result  = constrained_operator(operator_view, constraints);
+      result.vmult = [operator_view, &constraints](VectorType &destination,
+                                                   const VectorType &source) {
+        operator_view.vmult(destination, source);
+        for (const auto index : destination.locally_owned_elements())
+          if (constraints.is_constrained(index))
+            destination(index) = source(index);
+      };
+      result.vmult_add = [operator_view,
+                          &constraints](VectorType       &destination,
+                                        const VectorType &source) {
+        VectorType contribution;
+        operator_view.reinit_range_vector(contribution, false);
+        operator_view.vmult(contribution, source);
+        for (const auto index : contribution.locally_owned_elements())
+          if (constraints.is_constrained(index))
+            contribution(index) = source(index);
+        destination += contribution;
+      };
+      result.Tvmult     = result.vmult;
+      result.Tvmult_add = result.vmult_add;
+      return result;
+    }
+
+    template <typename VectorType>
+    dealii::LinearOperator<VectorType, VectorType>
+    constrained_identity_operator(
+      const dealii::LinearOperator<VectorType, VectorType> &operator_view,
+      const dealii::AffineConstraints<double>              &constraints)
+    {
+      auto result  = operator_view;
+      result.vmult = [&constraints](VectorType       &destination,
+                                    const VectorType &source) {
+        destination = 0.;
+        for (const auto index : destination.locally_owned_elements())
+          if (constraints.is_constrained(index))
+            destination(index) = source(index);
+      };
+      result.vmult_add = [&constraints](VectorType       &destination,
+                                        const VectorType &source) {
+        for (const auto index : destination.locally_owned_elements())
+          if (constraints.is_constrained(index))
+            destination(index) += source(index);
+      };
+      result.Tvmult     = result.vmult;
+      result.Tvmult_add = result.vmult_add;
+      return result;
+    }
+
     template <typename VectorType, typename MatrixType>
     MaterializedOperator<VectorType, MatrixType>
     constrained_matrix_operator(
@@ -113,6 +198,65 @@ namespace ImmersX
               matrix->set(row, entry->column(), 0.);
         matrix->compress(dealii::VectorOperation::insert);
         return matrix;
+      };
+      return result;
+    }
+
+    template <typename VectorType, typename MatrixType>
+    MaterializedOperator<VectorType, MatrixType>
+    constrained_matrix_operator_with_identity(
+      const MaterializedOperator<VectorType, MatrixType> &source,
+      const dealii::AffineConstraints<double>            &constraints)
+    {
+      auto result = source;
+      result.view =
+        constrained_operator_with_identity(source.view, constraints);
+      const auto impose_identity = [&constraints](MatrixType &matrix) {
+        for (const auto &line : constraints.get_lines())
+          if (matrix.in_local_range(line.index))
+            {
+              matrix.clear_row(line.index, 0.);
+              matrix.set(line.index, line.index, 1.);
+            }
+        matrix.compress(dealii::VectorOperation::insert);
+      };
+      result.materialize = [source, impose_identity]() {
+        auto matrix = source.matrix();
+        impose_identity(*matrix);
+        return matrix;
+      };
+      result.materialize_into = [source, impose_identity](MatrixType &matrix) {
+        source.materialize_into_matrix(matrix);
+        impose_identity(matrix);
+      };
+      return result;
+    }
+
+    template <typename VectorType, typename MatrixType>
+    MaterializedOperator<VectorType, MatrixType>
+    constrained_matrix_identity_operator(
+      const MaterializedOperator<VectorType, MatrixType> &source,
+      const dealii::AffineConstraints<double>            &constraints)
+    {
+      auto result = source;
+      result.view = constrained_identity_operator(source.view, constraints);
+      const auto impose_identity = [&constraints](MatrixType &matrix) {
+        for (const auto row : matrix.locally_owned_range_indices())
+          {
+            matrix.clear_row(row, 0.);
+            if (constraints.is_constrained(row))
+              matrix.set(row, row, 1.);
+          }
+        matrix.compress(dealii::VectorOperation::insert);
+      };
+      result.materialize = [source, impose_identity]() {
+        auto matrix = source.matrix();
+        impose_identity(*matrix);
+        return matrix;
+      };
+      result.materialize_into = [source, impose_identity](MatrixType &matrix) {
+        source.materialize_into_matrix(matrix);
+        impose_identity(matrix);
       };
       return result;
     }

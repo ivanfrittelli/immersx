@@ -119,8 +119,8 @@ namespace
         return {};
       }
     assert_tensor_product_solution(problem);
-    return {problem.solution.block(0).l2_norm(),
-            problem.solution.block(1).l2_norm()};
+    return {{problem.solution.block(0).l2_norm(),
+             problem.solution.block(1).l2_norm()}};
   }
 
   void

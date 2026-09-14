@@ -2121,12 +2121,19 @@ namespace ImmersX::detail
                                        context.state(field_layout_.field(j)));
       for (const auto &[row, column] : model_.active_operator_blocks())
         {
-          const auto i = field_layout_.block(row);
-          const auto j = field_layout_.block(column);
-          blocks[i][j] = model_.state_operator(row, column, context);
-          if (alpha != 0.)
-            blocks[i][j] +=
-              alpha * model_.derivative_operator(row, column, context);
+          const auto i         = field_layout_.block(row);
+          const auto j         = field_layout_.block(column);
+          const bool has_state = model_.has_state_operator(row, column);
+          const bool has_derivative =
+            model_.has_derivative_operator(row, column);
+          if (has_state)
+            blocks[i][j] = model_.state_operator(row, column, context);
+          if (alpha != 0. && has_derivative)
+            {
+              const auto derivative =
+                alpha * model_.derivative_operator(row, column, context);
+              blocks[i][j] = has_state ? blocks[i][j] + derivative : derivative;
+            }
         }
 
       Operator   result;

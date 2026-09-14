@@ -278,7 +278,11 @@ TEST(Elastodynamics, IDAResidualAndJacobianOracle)
                                         fields.fields().displacement));
   problem.mass_matrix().vmult(work, ida.field(state, fields.fields().velocity));
   expected_displacement -= work;
-  zero_constrained_entries<2>(problem.constraints(), expected_displacement);
+  for (const auto index : expected_displacement.locally_owned_elements())
+    if (problem.constraints().is_constrained(index))
+      expected_displacement(index) =
+        ida.field(state, fields.fields().displacement)(index) -
+        problem.constraints().get_inhomogeneity(index);
 
   problem.mass_matrix().vmult(expected_velocity,
                               ida.field(state_dot, fields.fields().velocity));
@@ -292,8 +296,11 @@ TEST(Elastodynamics, IDAResidualAndJacobianOracle)
   FieldVector force;
   problem.body_force_at_time(0., force);
   expected_velocity -= force;
-  zero_constrained_entries<2>(problem.velocity_constraints(),
-                              expected_velocity);
+  for (const auto index : expected_velocity.locally_owned_elements())
+    if (problem.velocity_constraints().is_constrained(index))
+      expected_velocity(index) =
+        ida.field(state, fields.fields().velocity)(index) -
+        problem.velocity_constraints().get_inhomogeneity(index);
 
   auto difference = ida.field(residual, fields.fields().displacement);
   difference -= expected_displacement;
@@ -321,8 +328,10 @@ TEST(Elastodynamics, IDAResidualAndJacobianOracle)
   problem.mass_matrix().vmult(work,
                               ida.field(increment, fields.fields().velocity));
   expected_displacement_action -= work;
-  zero_constrained_entries<2>(problem.constraints(),
-                              expected_displacement_action);
+  for (const auto index : expected_displacement_action.locally_owned_elements())
+    if (problem.constraints().is_constrained(index))
+      expected_displacement_action(index) =
+        ida.field(increment, fields.fields().displacement)(index);
 
   problem.stiffness_matrix().vmult(expected_velocity_action,
                                    ida.field(increment,
@@ -335,8 +344,10 @@ TEST(Elastodynamics, IDAResidualAndJacobianOracle)
                               ida.field(increment, fields.fields().velocity));
   work *= 2.;
   expected_velocity_action += work;
-  zero_constrained_entries<2>(problem.velocity_constraints(),
-                              expected_velocity_action);
+  for (const auto index : expected_velocity_action.locally_owned_elements())
+    if (problem.velocity_constraints().is_constrained(index))
+      expected_velocity_action(index) =
+        ida.field(increment, fields.fields().velocity)(index);
 
   difference = ida.field(action, fields.fields().displacement);
   difference -= expected_displacement_action;

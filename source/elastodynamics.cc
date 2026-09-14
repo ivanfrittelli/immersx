@@ -108,6 +108,9 @@ namespace ImmersX
     , displacement_boundary(normalize_elastodynamics_subsection(subsection) +
                               "Functions/Displacement boundary",
                             spacedim)
+    , neumann_boundary(normalize_elastodynamics_subsection(subsection) +
+                         "Functions/Neumann boundary",
+                       spacedim)
     , velocity_boundary(normalize_elastodynamics_subsection(subsection) +
                           "Functions/Velocity boundary",
                         spacedim)
@@ -130,6 +133,7 @@ namespace ImmersX
     add_parameter("Initial refinement", initial_refinement);
     add_parameter("Number of refinement cycles", n_refinement_cycles);
     add_parameter("Dirichlet boundary ids", dirichlet_ids);
+    add_parameter("Neumann boundary ids", neumann_ids);
 
     enter_subsection("Grid generation");
     {
@@ -169,6 +173,8 @@ namespace ImmersX
     body_force.declare_parameters_call_back.connect(
       declare_zero_vector_function);
     displacement_boundary.declare_parameters_call_back.connect(
+      declare_zero_vector_function);
+    neumann_boundary.declare_parameters_call_back.connect(
       declare_zero_vector_function);
     velocity_boundary.declare_parameters_call_back.connect(
       declare_zero_vector_function);
@@ -384,7 +390,8 @@ namespace ImmersX
 
   template <int dim, int spacedim>
   void
-  ElastodynamicsSolver<dim, spacedim>::update_constraints(const double time)
+  ElastodynamicsSolver<dim, spacedim>::update_constraints(
+    const double time) const
   {
     displacement_constraints_storage.clear();
     displacement_constraints_storage.reinit(owned_dofs, relevant_dofs);
@@ -647,10 +654,14 @@ namespace ImmersX
 
     AffineConstraints<double> no_constraints;
     no_constraints.close();
-    FEValues<dim, spacedim>          fe_values(*fe_storage,
+    FEValues<dim, spacedim>     fe_values(*fe_storage,
                                       *quadrature,
                                       update_values | update_quadrature_points |
                                         update_JxW_values);
+    FEFaceValues<dim, spacedim> fe_face_values(
+      *fe_storage,
+      QGauss<dim - 1>(par.fe_degree + 1),
+      update_values | update_quadrature_points | update_JxW_values);
     const FEValuesExtractors::Vector vector_field(0);
     const unsigned int          dofs_per_cell = fe_storage->n_dofs_per_cell();
     const unsigned int          n_q_points    = quadrature->size();
@@ -681,6 +692,35 @@ namespace ImmersX
                                                     destination);
         }
 
+    par.neumann_boundary.set_time(time);
+    for (const auto &cell : dh.active_cell_iterators())
+      if (cell->is_locally_owned())
+        for (const auto face : cell->face_indices())
+          if (cell->face(face)->at_boundary() &&
+              par.neumann_ids.find(cell->face(face)->boundary_id()) !=
+                par.neumann_ids.end())
+            {
+              fe_face_values.reinit(cell, face);
+              std::vector<Vector<double>> values(
+                fe_face_values.n_quadrature_points, Vector<double>(spacedim));
+              par.neumann_boundary.vector_value_list(
+                fe_face_values.get_quadrature_points(), values);
+              cell_rhs = 0.;
+              for (unsigned int q = 0; q < fe_face_values.n_quadrature_points;
+                   ++q)
+                for (unsigned int i = 0; i < dofs_per_cell; ++i)
+                  {
+                    const auto component =
+                      fe_storage->system_to_component_index(i).first;
+                    cell_rhs(i) += fe_face_values.shape_value(i, q) *
+                                   values[q](component) * fe_face_values.JxW(q);
+                  }
+              cell->get_dof_indices(local_dof_indices);
+              no_constraints.distribute_local_to_global(cell_rhs,
+                                                        local_dof_indices,
+                                                        destination);
+            }
+
     destination.compress(VectorOperation::add);
   }
 
@@ -705,6 +745,24 @@ namespace ImmersX
     velocity_constraints_storage.distribute(velocity_storage);
     update_locally_relevant_state();
     assemble_body_force(current_time_storage);
+  }
+
+
+  template <int dim, int spacedim>
+  void
+  ElastodynamicsSolver<dim, spacedim>::refine_global()
+  {
+    AssertThrow(!uses_fully_distributed_triangulation(),
+                ExcMessage(
+                  "ElastodynamicsSolver::refine_global() is unavailable for "
+                  "parallel::fullydistributed::Triangulation."));
+    AssertThrow(dh.n_dofs() != 0,
+                ExcMessage("Call setup_system() before refining the mesh."));
+
+    dh.clear();
+    std::get<DistributedTriangulation>(triangulation_storage).refine_global(1);
+    cycles_and_solutions.clear();
+    ++refinement_cycle_storage;
   }
 
 
@@ -978,6 +1036,17 @@ namespace ImmersX
 
   template <int dim, int spacedim>
   void
+  ElastodynamicsSolver<dim, spacedim>::compute_error() const
+  {
+    par.exact_solution.set_time(current_time_storage);
+    par.convergence_table.error_from_exact(dh,
+                                           locally_relevant_displacement,
+                                           par.exact_solution);
+  }
+
+
+  template <int dim, int spacedim>
+  void
   ElastodynamicsSolver<dim, spacedim>::output_results() const
   {
     TimerOutput::Scope t(computing_timer, "Output results");
@@ -1098,10 +1167,7 @@ namespace ImmersX
           par.convergence_table.output_table(pcout.get_stream());
 
         if (refinement_cycle_storage + 1 < par.n_refinement_cycles)
-          {
-            tria->refine_global(1);
-            dh.clear();
-          }
+          refine_global();
       }
   }
 

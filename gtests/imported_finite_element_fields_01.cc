@@ -239,17 +239,18 @@ namespace
     auto fields =
       std::make_shared<ImportedFiniteElementFields<3>>(filename,
                                                        problem.triangulation());
-    const auto value  = fields->field("cell_value");
+    const auto value       = fields->field("cell_value");
+    const auto value_field = value.field();
     const auto before = ImmersX::frozen(value.field(), value.coefficients());
     EXPECT_TRUE(before.is_frozen());
-    for (const auto index : value.field().locally_owned_dofs())
+    for (const auto index : value_field.locally_owned_dofs())
       EXPECT_DOUBLE_EQ(value.coefficients()[index], 7.);
 
     problem.refine_global();
 
     const auto after = ImmersX::frozen(value.field(), value.coefficients());
     EXPECT_TRUE(after.is_frozen());
-    for (const auto index : value.field().locally_owned_dofs())
+    for (const auto index : value_field.locally_owned_dofs())
       EXPECT_DOUBLE_EQ(value.coefficients()[index], 7.);
   }
 } // namespace

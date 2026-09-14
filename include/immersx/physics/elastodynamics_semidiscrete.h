@@ -60,7 +60,6 @@ namespace ImmersX
       ImmersX::matrix_operator<VectorType>(problem.stiffness_matrix());
     const auto damping =
       ImmersX::matrix_operator<VectorType>(problem.damping_matrix());
-
     builder.preconditioner(
       displacement, [](const auto &linearized_matrix, const auto &prototype) {
         return make_amg_preconditioner(linearized_matrix, prototype);
@@ -73,14 +72,19 @@ namespace ImmersX
     auto kinematic = builder.term(displacement, "kinematic");
     kinematic
       .residual([displacement, velocity, &problem, mass](const auto &context) {
-        return semidiscrete_detail::constrained_operation(
+        problem.update_constraints(context.time());
+        return semidiscrete_detail::constrained_residual(
           mass.view * context.derivative(displacement) -
             mass.view * context.state(velocity),
+          context.state(displacement),
           problem.constraints());
       })
       .state(velocity,
              semidiscrete_detail::constrained_matrix_operator(
                -1. * mass, problem.constraints()))
+      .state(displacement,
+             semidiscrete_detail::constrained_matrix_identity_operator(
+               mass, problem.constraints()))
       .derivative(displacement,
                   semidiscrete_detail::constrained_matrix_operator(
                     mass, problem.constraints()));
@@ -89,6 +93,7 @@ namespace ImmersX
     dynamics
       .residual([velocity, displacement, &problem, mass, stiffness, damping](
                   const auto &context) {
+        problem.update_constraints(context.time());
         const auto &v_dot  = context.derivative(velocity);
         auto        result = mass.view * v_dot +
                       stiffness.view * context.state(displacement) +
@@ -106,20 +111,44 @@ namespace ImmersX
           problem.body_force_at_time(time, force);
           vector += force;
         };
-        return semidiscrete_detail::constrained_operation(
-          result - forcing, problem.velocity_constraints());
+        return semidiscrete_detail::constrained_residual(
+          result - forcing,
+          context.state(velocity),
+          problem.velocity_constraints());
       })
       .state(displacement,
              semidiscrete_detail::constrained_matrix_operator(
                stiffness, problem.velocity_constraints()))
       .state(velocity,
-             semidiscrete_detail::constrained_matrix_operator(
+             semidiscrete_detail::constrained_matrix_operator_with_identity(
                damping, problem.velocity_constraints()))
       .derivative(velocity,
                   semidiscrete_detail::constrained_matrix_operator(
                     mass, problem.velocity_constraints()));
 
     return {displacement, velocity};
+  }
+
+  /** Initialize the two-field adapter state from the problem state. */
+  template <typename Adapter,
+            typename Fields,
+            int dim,
+            int spacedim,
+            typename GlobalVector>
+  void
+  initialize_elastodynamics_adapter_state(
+    Adapter                                   &adapter,
+    const Fields                              &fields,
+    const ElastodynamicsSolver<dim, spacedim> &problem,
+    GlobalVector                              &state,
+    GlobalVector                              &state_dot)
+  {
+    adapter.field(state, fields.fields().displacement) = problem.displacement();
+    adapter.field(state, fields.fields().velocity)     = problem.velocity();
+    adapter.field(state_dot, fields.fields().displacement) = problem.velocity();
+    typename ElastodynamicsSolver<dim, spacedim>::VectorType acceleration;
+    problem.initial_acceleration(acceleration);
+    adapter.field(state_dot, fields.fields().velocity) = acceleration;
   }
 } // namespace ImmersX
 
