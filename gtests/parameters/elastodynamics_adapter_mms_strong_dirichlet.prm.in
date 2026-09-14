@@ -28,7 +28,7 @@ subsection Elastodynamics
     set Final time = 0.13
     set Time step = 0.01
     set Number of time steps = 0
-    set Output frequency = 0
+    set Output frequency = 1
     set Policy = fixed
     subsection Running parameters
       set Initial step size = 0.005
