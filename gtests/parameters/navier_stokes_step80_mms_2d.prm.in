@@ -28,13 +28,15 @@ subsection Navier-Stokes
     set Include convective term = true
   end
 
-  subsection Time parameters
-    set Policy               = fixed
+  subsection Time interval
     set Initial time         = 0
     set Final time           = 1e6
+    set Output time interval = 1e6
+  end
+  subsection Fixed step
+    set Policy               = fixed
     set Time step            = 1e6
     set Number of time steps = 1
-    set Output frequency     = 0
   end
 
   set Analytical solution expression = sin(pi*x)*cos(pi*y); -cos(pi*x)*sin(pi*y); sin(pi*x)*sin(pi*y)

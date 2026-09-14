@@ -91,9 +91,11 @@ namespace ImmersX
     explicit NavierStokesParameters(
       const std::string &subsection = "/Navier-Stokes/");
 
-    std::string    output_directory = ".";
-    std::string    output_name      = "navier_stokes";
-    TimeParameters time_parameters;
+    std::string            output_directory = ".";
+    std::string            output_name      = "navier_stokes";
+    TimeIntervalParameters time_parameters;
+    FixedStepParameters    fixed_step_parameters;
+    IDAParameters          ida_parameters;
 
     unsigned int                          velocity_degree    = 2;
     unsigned int                          pressure_degree    = 1;

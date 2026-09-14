@@ -72,10 +72,15 @@ namespace
       dealii::ParameterAcceptor::clear();
       flow_problem = std::make_unique<FlowProblem>(MPI_COMM_WORLD);
       ImmersX::reset_parameter_handler_to_root(dealii::ParameterAcceptor::prm);
-      flow_time = std::make_unique<ImmersX::TimeParameters>();
+      flow_time       = std::make_unique<ImmersX::TimeIntervalParameters>();
+      flow_fixed_step = std::make_unique<ImmersX::FixedStepParameters>();
+      flow_ida        = std::make_unique<ImmersX::IDAParameters>();
       ImmersX::reset_parameter_handler_to_root(dealii::ParameterAcceptor::prm);
       solid_parameters = std::make_unique<ImmersX::ElastodynamicsParameters<3>>(
-        "/Elastodynamics/", flow_time.get());
+        "/Elastodynamics/",
+        flow_time.get(),
+        flow_fixed_step.get(),
+        flow_ida.get());
       ImmersX::reset_parameter_handler_to_root(dealii::ParameterAcceptor::prm);
       wall_lift = std::make_unique<WallObservable::Lift>(
         "/MetricFlowX vessel wall lift/");
@@ -100,7 +105,8 @@ namespace
       solid_problem->set_initial_conditions();
       flow_problem->setup();
 
-      adapter = std::make_unique<Adapter>(*flow_time, MPI_COMM_WORLD);
+      adapter =
+        std::make_unique<Adapter>(*flow_time, *flow_ida, MPI_COMM_WORLD);
       solid_fields.emplace(adapter->add(*solid_problem, "elastodynamics"));
       flow_fields.emplace(
         adapter->add(ImmersX::metric_flow_x(*flow_problem), "blood-flow"));
@@ -167,7 +173,9 @@ namespace
     }
 
     std::unique_ptr<FlowProblem>                          flow_problem;
-    std::unique_ptr<ImmersX::TimeParameters>              flow_time;
+    std::unique_ptr<ImmersX::TimeIntervalParameters>      flow_time;
+    std::unique_ptr<ImmersX::FixedStepParameters>         flow_fixed_step;
+    std::unique_ptr<ImmersX::IDAParameters>               flow_ida;
     std::unique_ptr<ImmersX::ElastodynamicsParameters<3>> solid_parameters;
     std::unique_ptr<SolidProblem>                         solid_problem;
     std::unique_ptr<WallObservable::Lift>                 wall_lift;

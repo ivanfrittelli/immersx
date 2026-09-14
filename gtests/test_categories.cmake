@@ -46,7 +46,7 @@ set(IMMERSX_INTEGRATION_TEST_SUITES
     LegacyInclusions
     LinearAdapter
     KINSOLAdapter
-    TimeParameters
+    TimeIntervalParameters
     ReducedCoupling
     TensorProductSpace
     TensorProductCoupling
@@ -128,7 +128,7 @@ set(_immersx_expected_test_suites
     ElastodynamicsDimensionValidation
     ElastodynamicsAdapterMMS
     FESpace
-    TimeParameters
+    TimeIntervalParameters
     FiberReinforcedElastodynamicsValidation
     ImportedFiniteElementFields
     InclusionsBasis2

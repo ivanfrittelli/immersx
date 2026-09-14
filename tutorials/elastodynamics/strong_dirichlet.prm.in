@@ -24,12 +24,15 @@ subsection Elastodynamics
     set Damping bulk  = 0.0
   end
 
-  subsection Time parameters
+  subsection Time interval
     set Initial time       = 0.0
     set Final time         = 0.01
     set Time step          = 0.01
     set Number of time steps = 1
-    set Output frequency     = 0
+    set Output time interval = 0.01
+  end
+  subsection Fixed step
+    set Policy               = number_of_steps
   end
 
   subsection Functions

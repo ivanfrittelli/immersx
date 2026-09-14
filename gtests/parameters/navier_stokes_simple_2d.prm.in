@@ -23,12 +23,14 @@ subsection Navier-Stokes
     set Include convective term = false
   end
 
-  subsection Time parameters
-    set Policy               = number_of_steps
+  subsection Time interval
     set Initial time         = 0
     set Final time           = 0.01
+    set Output time interval = 0.01
+  end
+  subsection Fixed step
+    set Policy               = number_of_steps
     set Number of time steps = 1
-    set Output frequency    = 0
   end
 
   subsection Right hand side

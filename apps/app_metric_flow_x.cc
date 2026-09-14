@@ -30,13 +30,14 @@ namespace
     using GlobalVector = ImmersX::ImmersXLA::MPI::BlockVector;
     using Adapter      = ImmersX::IDAAdapter<FieldVector, GlobalVector>;
 
-    ImmersX::TimeParameters time_parameters(
-      "/MetricFlowSystem<1, 3>/Time parameters/");
-    Problem problem(MPI_COMM_WORLD);
+    ImmersX::TimeIntervalParameters time_parameters(
+      "/MetricFlowSystem<1, 3>/Time interval/");
+    ImmersX::IDAParameters ida_parameters("/MetricFlowSystem<1, 3>/IDA/");
+    Problem                problem(MPI_COMM_WORLD);
     problem.initialize_params(parameter_file);
     problem.setup();
 
-    Adapter    adapter(time_parameters, MPI_COMM_WORLD);
+    Adapter    adapter(time_parameters, ida_parameters, MPI_COMM_WORLD);
     const auto fields =
       adapter.add(ImmersX::metric_flow_x(problem), "blood-flow");
 

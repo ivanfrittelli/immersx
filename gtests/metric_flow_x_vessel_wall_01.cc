@@ -39,8 +39,10 @@ namespace
     {
       dealii::ParameterAcceptor::clear();
       problem         = std::make_unique<Problem>(MPI_COMM_WORLD);
-      time_parameters = std::make_unique<ImmersX::TimeParameters>(
-        "/MetricFlowSystem<1, 3>/Time parameters/");
+      time_parameters = std::make_unique<ImmersX::TimeIntervalParameters>(
+        "/MetricFlowSystem<1, 3>/Time interval/");
+      ida_parameters = std::make_unique<ImmersX::IDAParameters>(
+        "/MetricFlowSystem<1, 3>/IDA/");
       problem->initialize_params(ImmersX::TestPaths::parameter_path(
         "gtests/parameters/metric_flow_x.prm"));
       problem->setup();
@@ -80,7 +82,8 @@ namespace
                                                                     nullptr);
     }
 
-    std::unique_ptr<ImmersX::TimeParameters>          time_parameters;
+    std::unique_ptr<ImmersX::TimeIntervalParameters>  time_parameters;
+    std::unique_ptr<ImmersX::IDAParameters>           ida_parameters;
     std::unique_ptr<Problem>                          problem;
     ImmersX::StateLayout                              layout;
     ImmersX::FieldId                                  field;

@@ -1,10 +1,16 @@
 include @IMMERSX_BINARY_DIR@/tutorials/metric_flow_x_elastodynamics/01_wall_kinematics.prm
 
-subsection Time parameters
+subsection Time interval
+  set Initial time = 0.0
   set Final time = 0.1
+  set Output time interval = 0.1
+end
+subsection Fixed step
   set Time step = 0.1
   set Number of time steps = 1
-  set Output frequency = 1
+  set Policy = number_of_steps
+end
+subsection IDA
   subsection Running parameters
     set Initial step size = 0.1
     set Minimum step size = 1e-6

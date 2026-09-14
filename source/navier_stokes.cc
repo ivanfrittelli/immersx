@@ -81,7 +81,10 @@ namespace ImmersX
     const std::string &subsection)
     : ParameterAcceptor(normalize_navier_stokes_subsection(subsection))
     , time_parameters(normalize_navier_stokes_subsection(subsection) +
-                      "Time parameters/")
+                      "Time interval/")
+    , fixed_step_parameters(normalize_navier_stokes_subsection(subsection) +
+                            "Fixed step/")
+    , ida_parameters(normalize_navier_stokes_subsection(subsection) + "IDA/")
     , convergence_table(navier_stokes_error_component_names<dim>(),
                         navier_stokes_error_norms<dim>())
     , rhs(normalize_navier_stokes_subsection(subsection) + "Right hand side",
@@ -95,9 +98,8 @@ namespace ImmersX
     , solver_control(normalize_navier_stokes_subsection(subsection) +
                      "Solver/Control")
   {
-    // Preserve the historical Navier--Stokes default while keeping the
-    // canonical storage in TimeParameters.
-    time_parameters.number_of_steps = 10;
+    // Preserve the historical Navier--Stokes default for fixed-step runs.
+    fixed_step_parameters.number_of_steps = 10;
 
     add_parameter("Output directory", output_directory);
     add_parameter("Output name", output_name);
@@ -353,23 +355,23 @@ namespace ImmersX
                   par.time_parameters.initial_time,
                 ExcMessage("Final time must be larger than initial time."));
 
-    if (par.time_parameters.time_step_policy == "number_of_steps")
+    if (par.fixed_step_parameters.time_step_policy == "number_of_steps")
       {
-        AssertThrow(par.time_parameters.number_of_steps > 0,
+        AssertThrow(par.fixed_step_parameters.number_of_steps > 0,
                     ExcMessage("Number of time steps must be positive."));
-        n_time_steps_storage = par.time_parameters.number_of_steps;
+        n_time_steps_storage = par.fixed_step_parameters.number_of_steps;
         time_step_storage =
           (par.time_parameters.final_time - par.time_parameters.initial_time) /
           n_time_steps_storage;
       }
     else
       {
-        AssertThrow(par.time_parameters.time_step > 0.,
+        AssertThrow(par.fixed_step_parameters.time_step > 0.,
                     ExcMessage("The fixed time step must be positive."));
         n_time_steps_storage = static_cast<unsigned int>(std::ceil(
           (par.time_parameters.final_time - par.time_parameters.initial_time) /
-          par.time_parameters.time_step));
-        time_step_storage    = par.time_parameters.time_step;
+          par.fixed_step_parameters.time_step));
+        time_step_storage    = par.fixed_step_parameters.time_step;
       }
   }
 
@@ -541,9 +543,9 @@ namespace ImmersX
     FullMatrix<double> cell_mass_matrix(dofs_per_cell, dofs_per_cell);
     Vector<double>     cell_rhs(dofs_per_cell);
 
-    std::vector<Vector<double>>               rhs_values(n_q_points,
-                                           Vector<double>(spacedim + 1));
-    std::vector<Tensor<1, spacedim>>          phi_u(dofs_per_cell);
+    std::vector<Vector<double>>      rhs_values(n_q_points,
+                                                Vector<double>(spacedim + 1));
+    std::vector<Tensor<1, spacedim>> phi_u(dofs_per_cell);
     std::vector<SymmetricTensor<2, spacedim>> sym_grad_phi_u(dofs_per_cell);
     std::vector<double>                       div_phi_u(dofs_per_cell);
     std::vector<double>                       phi_p(dofs_per_cell);
@@ -673,13 +675,13 @@ namespace ImmersX
       block_operator<2, 2, BlockVectorType>({{{{A, Bt}}, {{B, Z}}}});
 
     SolverControl    velocity_control(par.inner_solver_max_steps,
-                                   par.inner_solver_tolerance,
-                                   false,
-                                   par.log_solver_iterations);
+                                      par.inner_solver_tolerance,
+                                      false,
+                                      par.log_solver_iterations);
     SolverControl    pressure_control(par.inner_solver_max_steps,
-                                   par.inner_solver_tolerance,
-                                   false,
-                                   par.log_solver_iterations);
+                                      par.inner_solver_tolerance,
+                                      false,
+                                      par.log_solver_iterations);
     SolverCG<Vector> velocity_solver(velocity_control);
     SolverCG<Vector> pressure_solver(pressure_control);
 
@@ -727,8 +729,8 @@ namespace ImmersX
     const double next_time =
       std::min(par.time_parameters.final_time,
                current_time_storage +
-                 (par.time_parameters.time_step_policy == "fixed" ?
-                    par.time_parameters.time_step :
+                 (par.fixed_step_parameters.time_step_policy == "fixed" ?
+                    par.fixed_step_parameters.time_step :
                     time_step_storage));
     time_step_storage    = next_time - current_time_storage;
     current_time_storage = next_time;
@@ -829,17 +831,22 @@ namespace ImmersX
     setup_fe();
     setup_system();
 
-    if (par.time_parameters.output_frequency > 0)
+    if (par.time_parameters.output_time_interval > 0)
       output_results();
 
+    double next_output_time = par.time_parameters.initial_time +
+                              par.time_parameters.output_time_interval;
     while (timestep_number_storage < n_time_steps_storage)
       {
         advance_one_timestep();
-        if (par.time_parameters.output_frequency > 0 &&
-            (timestep_number_storage % par.time_parameters.output_frequency ==
-               0 ||
+        if (par.time_parameters.output_time_interval > 0 &&
+            (current_time_storage >= next_output_time ||
              timestep_number_storage == n_time_steps_storage))
-          output_results();
+          {
+            output_results();
+            while (next_output_time <= current_time_storage)
+              next_output_time += par.time_parameters.output_time_interval;
+          }
       }
   }
 
@@ -1038,17 +1045,17 @@ namespace ImmersX
     destination.reinit(owned_dofs_by_block[0], mpi_communicator);
     destination = 0.;
 
-    FEValues<dim, spacedim>              fe_values(mapping_storage,
+    FEValues<dim, spacedim> fe_values(mapping_storage,
                                       *fe,
                                       *quadrature,
                                       update_values | update_quadrature_points |
                                         update_JxW_values);
-    const unsigned int                   dofs_per_cell = fe->n_dofs_per_cell();
-    const unsigned int                   n_q_points    = quadrature->size();
-    Vector<double>                       cell_rhs(dofs_per_cell);
-    std::vector<Vector<double>>          rhs_values(n_q_points,
-                                           Vector<double>(spacedim + 1));
-    std::vector<Tensor<1, spacedim>>     phi_u(dofs_per_cell);
+    const unsigned int      dofs_per_cell = fe->n_dofs_per_cell();
+    const unsigned int      n_q_points    = quadrature->size();
+    Vector<double>          cell_rhs(dofs_per_cell);
+    std::vector<Vector<double>>      rhs_values(n_q_points,
+                                                Vector<double>(spacedim + 1));
+    std::vector<Tensor<1, spacedim>> phi_u(dofs_per_cell);
     std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
     std::vector<types::global_dof_index> velocity_indices;
     std::vector<double>                  velocity_values;

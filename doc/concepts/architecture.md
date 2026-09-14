@@ -120,7 +120,8 @@ with `field()`, and solves the assembled linear system with its configured
 deal.II solver and preconditioner.
 
 `IDAAdapter` executes the residual as a differential-algebraic system. It
-uses `TimeParameters` for the common time settings and IDA configuration,
+uses separate `TimeIntervalParameters` and `IDAParameters` objects for the
+simulation interval/output schedule and IDA configuration,
 builds the differential-component mask from field metadata, and forms the
 solver Jacobian
 

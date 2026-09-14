@@ -168,10 +168,14 @@ namespace
     ImmersX::reset_parameter_handler_to_root(dealii::ParameterAcceptor::prm);
     TutorialParameters tutorial_parameters;
     ImmersX::reset_parameter_handler_to_root(dealii::ParameterAcceptor::prm);
-    ImmersX::TimeParameters flow_time;
+    ImmersX::TimeIntervalParameters flow_time("/Time interval/");
+    ImmersX::FixedStepParameters    fixed_step("/Fixed step/");
+    ImmersX::IDAParameters          ida_parameters("/IDA/");
     ImmersX::reset_parameter_handler_to_root(dealii::ParameterAcceptor::prm);
     ImmersX::ElastodynamicsParameters<3> solid_parameters("/Elastodynamics/",
-                                                          &flow_time);
+                                                          &flow_time,
+                                                          &fixed_step,
+                                                          &ida_parameters);
     ImmersX::reset_parameter_handler_to_root(dealii::ParameterAcceptor::prm);
     WallObservable::Lift wall_lift("/MetricFlowX vessel wall lift/");
     wall_lift.section.inclusion_degree      = 1;
@@ -212,12 +216,12 @@ namespace
     const auto       constants = function_constants();
     const auto       flow_solution =
       mms_case == "static_equilibrium" ?
-              constant_flow_solution(std::stod(static_flow_area_expression())) :
-            mms_case == "kinematics" ?
-              constant_flow_solution(reference_area(par) + 1.e-8) :
-            mms_case == "spatial" ?
-              flow_area_expression(true) + ";0;" + flow_area_expression(true) + ";0" :
-              flow_area_expression() + ";" + flow_velocity_expression() + ";" +
+        constant_flow_solution(std::stod(static_flow_area_expression())) :
+      mms_case == "kinematics" ?
+        constant_flow_solution(reference_area(par) + 1.e-8) :
+      mms_case == "spatial" ?
+        flow_area_expression(true) + ";0;" + flow_area_expression(true) + ";0" :
+        flow_area_expression() + ";" + flow_velocity_expression() + ";" +
           flow_area_expression() + ";" + flow_velocity_expression();
     if (mms_case != "none")
       {
@@ -275,7 +279,7 @@ namespace
     flow_problem.setup();
     const auto flow_output_directory = metric_flow_output_directory();
 
-    Adapter    adapter(flow_time, MPI_COMM_WORLD);
+    Adapter    adapter(flow_time, ida_parameters, MPI_COMM_WORLD);
     const auto solid_fields = adapter.add(solid_problem, "elastodynamics");
     const auto flow_fields =
       adapter.add(ImmersX::metric_flow_x(flow_problem), "blood-flow");
@@ -362,10 +366,7 @@ namespace
         step);
       interaction.set_multiplier(
         adapter.field(state, coupling_fields.fields().multiplier));
-      if (flow_time.output_frequency == 0 ||
-          step % flow_time.output_frequency == 0 ||
-          time >= flow_time.final_time)
-        output(state, step, time);
+      output(state, step, time);
       (void)state_dot;
     });
 

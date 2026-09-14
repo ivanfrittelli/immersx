@@ -48,12 +48,14 @@ namespace
         set Viscosity               = 1
         set Include convective term = false
       end
-      subsection Time parameters
-        set Policy             = number_of_steps
+      subsection Time interval
         set Initial time       = 0
         set Final time         = 0.05
+        set Output time interval = 0.05
+      end
+      subsection Fixed step
+        set Policy             = number_of_steps
         set Number of time steps = 1
-        set Output frequency     = 0
       end
       subsection Right hand side
         set Function expression = 1; 0; 0
@@ -99,12 +101,14 @@ namespace
         set Viscosity               = 1
         set Include convective term = true
       end
-      subsection Time parameters
-        set Policy               = number_of_steps
+      subsection Time interval
         set Initial time         = 0
         set Final time           = 0.05
+        set Output time interval = 0.05
+      end
+      subsection Fixed step
+        set Policy               = number_of_steps
         set Number of time steps = 1
-        set Output frequency     = 0
       end
       subsection Right hand side
         set Function expression = 0; 0; 0
@@ -163,7 +167,7 @@ TEST(NavierStokes, ParameterParsing)
   EXPECT_EQ(parameters.velocity_degree, 2u);
   EXPECT_EQ(parameters.pressure_degree, 1u);
   EXPECT_FALSE(parameters.include_convective_term);
-  EXPECT_EQ(parameters.time_parameters.number_of_steps, 1u);
+  EXPECT_EQ(parameters.fixed_step_parameters.number_of_steps, 1u);
   EXPECT_DOUBLE_EQ(parameters.time_parameters.final_time, 0.05);
 }
 
@@ -237,15 +241,17 @@ TEST(NavierStokes, MPI_IDAResidualJacobianAndSolve)
   using FieldVector  = LA::MPI::Vector;
   using GlobalVector = LA::MPI::BlockVector;
   using Adapter      = IDAAdapter<FieldVector, GlobalVector>;
-  TimeParameters time_parameters;
-  time_parameters.initial_time                    = 0.;
-  time_parameters.final_time                      = 0.05;
-  time_parameters.initial_step_size               = 0.025;
-  time_parameters.time_step                       = 0.05;
-  time_parameters.output_frequency                = 1;
-  time_parameters.maximum_order                   = 1;
-  time_parameters.correction_type_at_initial_time = "none";
-  Adapter    ida(time_parameters, MPI_COMM_WORLD);
+  TimeIntervalParameters time_parameters;
+  FixedStepParameters    fixed_step_parameters;
+  IDAParameters          ida_parameters;
+  time_parameters.initial_time                   = 0.;
+  time_parameters.final_time                     = 0.05;
+  ida_parameters.initial_step_size               = 0.025;
+  fixed_step_parameters.time_step                = 0.05;
+  time_parameters.output_time_interval           = 0.05;
+  ida_parameters.maximum_order                   = 1;
+  ida_parameters.correction_type_at_initial_time = "none";
+  Adapter    ida(time_parameters, ida_parameters, MPI_COMM_WORLD);
   const auto fields = ida.add(problem, "fluid");
 
   auto state                                     = ida.make_state();
@@ -410,10 +416,13 @@ TEST(NavierStokes, MPI_ThreeDimensionalSmoke)
     subsection Navier-Stokes
       set Initial refinement = 0
       set Dirichlet boundary ids = 0
-      subsection Time parameters
+      subsection Time interval
         set Final time           = 0.02
+        set Output time interval = 0.02
+      end
+      subsection Fixed step
         set Number of time steps = 1
-        set Output frequency     = 0
+        set Policy                = number_of_steps
       end
       subsection Right hand side
         set Function expression = 1; 0; 0; 0
