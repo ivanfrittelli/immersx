@@ -38,43 +38,58 @@ namespace
     ElastodynamicsSolver<dim, spacedim> problem(parameters);
     problem.make_grid();
     problem.setup_fe();
-    problem.setup_system();
-    problem.assemble_operators();
-    problem.set_initial_conditions();
+
+    AssertThrow(parameters.triangulation_type != "fullydistributed" ||
+                  parameters.n_refinement_cycles <= 1,
+                ExcMessage(
+                  "parallel::fullydistributed::Triangulation supports only one "
+                  "elastodynamics adapter refinement cycle."));
 
     using FieldVector =
       typename ElastodynamicsSolver<dim, spacedim>::VectorType;
     using GlobalVector = ImmersXLA::MPI::BlockVector;
     using Adapter      = IDAAdapter<FieldVector, GlobalVector>;
 
-    Adapter    adapter(parameters.time_parameters, MPI_COMM_WORLD);
-    const auto fields = adapter.add(problem, "elastodynamics");
-    adapter.set_output_step(
-      [&problem, &adapter, fields, &parameters](const double        time,
-                                                const GlobalVector &state,
-                                                const GlobalVector &state_dot,
-                                                const unsigned int  step) {
-        problem.accept_state(adapter.field(state, fields.fields().displacement),
-                             adapter.field(state, fields.fields().velocity),
-                             time,
-                             step);
-        if ((parameters.time_parameters.output_frequency == 0 &&
-             (step == 0 || time >= parameters.time_parameters.final_time)) ||
-            (parameters.time_parameters.output_frequency > 0 &&
-             (step % parameters.time_parameters.output_frequency == 0 ||
-              time >= parameters.time_parameters.final_time)))
-          problem.output_results();
-        (void)state_dot;
-      });
+    for (unsigned int cycle = 0; cycle < parameters.n_refinement_cycles;
+         ++cycle)
+      {
+        problem.setup_system();
+        problem.assemble_operators();
+        problem.set_initial_conditions();
 
-    auto state     = adapter.make_state();
-    auto state_dot = adapter.make_state();
-    initialize_elastodynamics_adapter_state(
-      adapter, fields, problem, state, state_dot);
+        Adapter    adapter(parameters.time_parameters, MPI_COMM_WORLD);
+        const auto fields = adapter.add(problem, "elastodynamics");
+        adapter.set_output_step([&problem, &adapter, fields, &parameters](
+                                  const double        time,
+                                  const GlobalVector &state,
+                                  const GlobalVector &state_dot,
+                                  const unsigned int  step) {
+          problem.accept_state(adapter.field(state,
+                                             fields.fields().displacement),
+                               adapter.field(state, fields.fields().velocity),
+                               time,
+                               step);
+          if ((parameters.time_parameters.output_frequency == 0 &&
+               (step == 0 || time >= parameters.time_parameters.final_time)) ||
+              (parameters.time_parameters.output_frequency > 0 &&
+               (step % parameters.time_parameters.output_frequency == 0 ||
+                time >= parameters.time_parameters.final_time)))
+            problem.output_results();
+          (void)state_dot;
+        });
 
-    adapter.solve(state, state_dot);
+        auto state     = adapter.make_state();
+        auto state_dot = adapter.make_state();
+        initialize_elastodynamics_adapter_state(
+          adapter, fields, problem, state, state_dot);
 
-    problem.compute_error();
+        adapter.solve(state, state_dot);
+        problem.compute_error();
+
+        if (cycle + 1 < parameters.n_refinement_cycles)
+          problem.refine_global();
+      }
+
     if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
       parameters.convergence_table.output_table(std::cout);
   }

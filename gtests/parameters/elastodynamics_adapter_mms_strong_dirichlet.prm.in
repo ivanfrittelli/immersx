@@ -6,7 +6,7 @@ subsection Elastodynamics
   set Output directory = @TEST_OUTPUT_DIR@/elastodynamics-adapter-mms/strong-dirichlet
   set Output name = strong_dirichlet
   set Initial refinement = 2
-  set Number of refinement cycles = 1
+  set Number of refinement cycles = 3
   set Dirichlet boundary ids = 0, 1, 2, 3
 
   subsection Grid generation
@@ -83,17 +83,6 @@ subsection Elastodynamics
       set Tolerance = 1.e-7
     end
   end
-end
-
-subsection Error
-  set Enable computation of the errors = true
-  set Error file name                  = @TEST_OUTPUT_DIR@/elastodynamics-adapter-mms/strong-dirichlet/errors.txt
-  set Error precision                  = 8
-  set Exponent for p-norms             = 2
-  set Extra columns                    = cells, dofs
-  set List of error norms to compute   = L2_norm, Linfty_norm, H1_norm
-  set Rate key                         = dofs
-  set Rate mode                        = reduction_rate_log2
 end
 
 subsection Error

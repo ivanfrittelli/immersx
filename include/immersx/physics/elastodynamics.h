@@ -195,6 +195,10 @@ namespace ImmersX
     void
     set_initial_conditions();
 
+    /** Refine the mesh for the next spatial convergence cycle. */
+    void
+    refine_global();
+
     /** Compute the physically consistent initial acceleration. */
     void
     initial_acceleration(VectorType &acceleration) const;
