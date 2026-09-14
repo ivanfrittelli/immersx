@@ -27,11 +27,11 @@ subsection Elastodynamics
   subsection Time interval
     set Initial time       = 0.0
     set Final time         = 0.01
-    set Time step          = 0.01
-    set Number of time steps = 1
     set Output time interval = 0.01
   end
   subsection Fixed step
+    set Time step           = 0.01
+    set Number of time steps = 1
     set Policy               = number_of_steps
   end
 
