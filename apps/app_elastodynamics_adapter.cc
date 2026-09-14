@@ -73,6 +73,10 @@ namespace
       adapter, fields, problem, state, state_dot);
 
     adapter.solve(state, state_dot);
+
+    problem.compute_error();
+    if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+      parameters.convergence_table.output_table(std::cout);
   }
 #else
   template <int dim, int spacedim = dim>

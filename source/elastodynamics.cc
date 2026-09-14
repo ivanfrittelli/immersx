@@ -1018,6 +1018,17 @@ namespace ImmersX
 
   template <int dim, int spacedim>
   void
+  ElastodynamicsSolver<dim, spacedim>::compute_error() const
+  {
+    par.exact_solution.set_time(current_time_storage);
+    par.convergence_table.error_from_exact(dh,
+                                           locally_relevant_displacement,
+                                           par.exact_solution);
+  }
+
+
+  template <int dim, int spacedim>
+  void
   ElastodynamicsSolver<dim, spacedim>::output_results() const
   {
     TimerOutput::Scope t(computing_timer, "Output results");

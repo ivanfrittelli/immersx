@@ -211,6 +211,10 @@ namespace ImmersX
     void
     output_results() const;
 
+    /** Add the current displacement error to the configured error table. */
+    void
+    compute_error() const;
+
     /** Run setup, initialization, and the configured backward-Euler time loop.
      */
     void
