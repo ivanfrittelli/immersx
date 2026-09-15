@@ -100,13 +100,13 @@ namespace
   std::string
   displacement_expression()
   {
-    const std::string r2     = "(y*y+z*z)";
-    const std::string r      = "sqrt(" + r2 + ")";
-    const std::string a      = "(a0+amp*(1-cos(om*t))*sin(k*(x+half)))";
-    const std::string d      = "(sqrt(" + a + "/pi)-r0)";
-    const std::string phi    = "(" + r2 + "<=r0*r0 ? " + r +
-                               "/r0 : " + "r0/(r0*r0-r1*r1)*(" + r + "-r1*r1/" +
-                               r + "))";
+    const std::string r2  = "(y*y+z*z)";
+    const std::string r   = "sqrt(" + r2 + ")";
+    const std::string a   = "(a0+amp*(1-cos(om*t))*sin(k*(x+half)))";
+    const std::string d   = "(sqrt(" + a + "/pi)-r0)";
+    const std::string phi = "(" + r2 + "<=r0*r0 ? " + r +
+                            "/r0 : " + "r0/(r0*r0-r1*r1)*(" + r + "-r1*r1/" +
+                            r + "))";
     const std::string radial = "(" + d + "*" + phi + ")";
     return "0;(" + r2 + "==0 ? 0 : " + radial + "*y/" + r + ");(" + r2 +
            "==0 ? 0 : " + radial + "*z/" + r + ")";
@@ -115,14 +115,14 @@ namespace
   std::string
   spatial_displacement_expression()
   {
-    const std::string r2     = "(y*y+z*z)";
-    const std::string r      = "sqrt(" + r2 + ")";
-    const std::string s      = "(x+half)";
-    const std::string a      = "(a0+amp*sin(k*" + s + "))";
-    const std::string d      = "(sqrt(" + a + "/pi)-r0)";
-    const std::string phi    = "(" + r2 + "<=r0*r0 ? " + r +
-                               "/r0 : " + "r0/(r0*r0-r1*r1)*(" + r + "-r1*r1/" +
-                               r + "))";
+    const std::string r2  = "(y*y+z*z)";
+    const std::string r   = "sqrt(" + r2 + ")";
+    const std::string s   = "(x+half)";
+    const std::string a   = "(a0+amp*sin(k*" + s + "))";
+    const std::string d   = "(sqrt(" + a + "/pi)-r0)";
+    const std::string phi = "(" + r2 + "<=r0*r0 ? " + r +
+                            "/r0 : " + "r0/(r0*r0-r1*r1)*(" + r + "-r1*r1/" +
+                            r + "))";
     const std::string radial = "(" + d + "*" + phi + ")";
     return "0;(" + r2 + "==0 ? 0 : " + radial + "*y/" + r + ");(" + r2 +
            "==0 ? 0 : " + radial + "*z/" + r + ")";
@@ -273,9 +273,9 @@ namespace
   flow_velocity_time_derivative_expression()
   {
     const Parameters  par;
-    const std::string a  = "(" + flow_area_expression() + ")";
-    const std::string h  = "(1-cos(" + number(wave_number(par)) + "*(x+" +
-                           number(par.length / 2.) + ")))";
+    const std::string a = "(" + flow_area_expression() + ")";
+    const std::string h = "(1-cos(" + number(wave_number(par)) + "*(x+" +
+                          number(par.length / 2.) + ")))";
     const std::string at = "(" + number(par.area_amplitude) + "*" +
                            number(par.omega) + "*sin(" + number(par.omega) +
                            "*t)*sin(" + number(wave_number(par)) + "*(x+" +

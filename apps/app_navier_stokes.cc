@@ -43,8 +43,8 @@ namespace
 
 #ifdef DEAL_II_WITH_SUNDIALS
     Adapter    adapter(parameters.time_parameters,
-                       parameters.ida_parameters,
-                       MPI_COMM_WORLD);
+                    parameters.ida_parameters,
+                    MPI_COMM_WORLD);
     const auto fields = adapter.add(problem, "navier-stokes");
     adapter.set_output_step(
       [&problem, &adapter, fields, &parameters](const double        time,

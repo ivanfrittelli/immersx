@@ -67,8 +67,8 @@ namespace
     problem.set_initial_conditions();
 
     Adapter    adapter(parameters.time_parameters,
-                       parameters.ida_parameters,
-                       MPI_COMM_WORLD);
+                    parameters.ida_parameters,
+                    MPI_COMM_WORLD);
     const auto fields    = adapter.add(problem, "elastodynamics");
     auto       state     = adapter.make_state();
     auto       state_dot = adapter.make_state();

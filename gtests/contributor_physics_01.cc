@@ -43,14 +43,14 @@ TEST(ContributorPhysics, ElastodynamicsCanPopulateIDAAdapter)
   using Adapter      = ImmersX::IDAAdapter<FieldVector, GlobalVector>;
   parameters.ida_parameters.correction_type_at_initial_time = "none";
   Adapter    adapter(parameters.time_parameters,
-                     parameters.ida_parameters,
-                     MPI_COMM_WORLD,
-                     [](const dealii::LinearOperator<GlobalVector> &,
-                        const GlobalVector &,
-                        GlobalVector &,
-                        double) {
+                  parameters.ida_parameters,
+                  MPI_COMM_WORLD,
+                  [](const dealii::LinearOperator<GlobalVector> &,
+                     const GlobalVector &,
+                     GlobalVector &,
+                     double) {
                     FAIL() << "The test only checks composition.";
-                     });
+                  });
   const auto fields = adapter.add(problem, "solid");
   EXPECT_TRUE(fields.fields().displacement.is_valid());
   EXPECT_TRUE(fields.fields().velocity.is_valid());
@@ -97,12 +97,12 @@ TEST(ContributorPhysics, StokesCanPopulateIDAAdapter)
   time_parameters.initial_time = 0.;
   time_parameters.final_time   = 0.01;
   Adapter    adapter(time_parameters,
-                     ida_parameters,
-                     MPI_COMM_WORLD,
-                     [](const dealii::LinearOperator<GlobalVector> &,
-                        const GlobalVector &,
-                        GlobalVector &,
-                        double) {});
+                  ida_parameters,
+                  MPI_COMM_WORLD,
+                  [](const dealii::LinearOperator<GlobalVector> &,
+                     const GlobalVector &,
+                     GlobalVector &,
+                     double) {});
   const auto fields = adapter.add(problem, "fluid");
   EXPECT_TRUE(fields.fields().velocity.is_valid());
   EXPECT_TRUE(fields.fields().pressure.is_valid());
@@ -120,9 +120,9 @@ TEST(ContributorPhysics, TimeIntervalParametersDerivesIDAConfiguration)
   FixedStepParameters             fixed_step_parameters("/Test/Fixed step/");
   IDAParameters                   ida_parameters("/Test/IDA/");
   Adapter                         adapter(time_parameters,
-                                          ida_parameters,
-                                          MPI_COMM_WORLD,
-                                          Adapter::LinearSolveFunction{});
+                  ida_parameters,
+                  MPI_COMM_WORLD,
+                  Adapter::LinearSolveFunction{});
 
   ImmersX::initialize_parameters_from_string(R"(
     subsection Test

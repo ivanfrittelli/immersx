@@ -216,12 +216,12 @@ namespace
     const auto       constants = function_constants();
     const auto       flow_solution =
       mms_case == "static_equilibrium" ?
-        constant_flow_solution(std::stod(static_flow_area_expression())) :
-      mms_case == "kinematics" ?
-        constant_flow_solution(reference_area(par) + 1.e-8) :
-      mms_case == "spatial" ?
-        flow_area_expression(true) + ";0;" + flow_area_expression(true) + ";0" :
-        flow_area_expression() + ";" + flow_velocity_expression() + ";" +
+              constant_flow_solution(std::stod(static_flow_area_expression())) :
+            mms_case == "kinematics" ?
+              constant_flow_solution(reference_area(par) + 1.e-8) :
+            mms_case == "spatial" ?
+              flow_area_expression(true) + ";0;" + flow_area_expression(true) + ";0" :
+              flow_area_expression() + ";" + flow_velocity_expression() + ";" +
           flow_area_expression() + ";" + flow_velocity_expression();
     if (mms_case != "none")
       {

@@ -53,7 +53,7 @@ namespace
             };
             result.reinit_domain_vector = result.reinit_range_vector;
             result.vmult                = [](FieldVector       &destination,
-                                             const FieldVector &source) {
+                              const FieldVector &source) {
               destination = source;
             };
             result.vmult_add = [](FieldVector       &destination,
@@ -359,7 +359,7 @@ TEST(DistributedIDA, MPI_StateDependentJacobianOwnsEvaluationState) // NOLINT
         };
         result.reinit_domain_vector = result.reinit_range_vector;
         result.vmult                = [state](FieldVector       &destination,
-                                              const FieldVector &source) {
+                               const FieldVector &source) {
           destination = source;
           destination *= state(*state.locally_owned_elements().begin());
         };
@@ -405,7 +405,7 @@ TEST(DistributedIDA, MPI_MixedFieldDifferentialComponents) // NOLINT
   TimeIntervalParameters time_parameters;
   FixedStepParameters    fixed_step_parameters;
   IDAParameters          ida_parameters;
-  Adapter adapter(time_parameters,
+  Adapter                adapter(time_parameters,
                   ida_parameters,
                   MPI_COMM_WORLD,
                   [](const dealii::LinearOperator<GlobalVector> &,
@@ -438,7 +438,7 @@ TEST(DistributedIDA, MPI_MixedFieldDifferentialComponents) // NOLINT
         };
         result.reinit_domain_vector = result.reinit_range_vector;
         result.vmult                = [scale](FieldVector       &destination,
-                                              const FieldVector &source) {
+                               const FieldVector &source) {
           destination = source;
           destination *= scale;
         };

@@ -52,7 +52,7 @@ namespace
         {
           std::ifstream input(entry.path());
           std::string   contents((std::istreambuf_iterator<char>(input)),
-                                 std::istreambuf_iterator<char>());
+                               std::istreambuf_iterator<char>());
           if (contents.find(text) != std::string::npos)
             return true;
         }
@@ -220,9 +220,9 @@ namespace
   {
     const QGauss<1> quadrature(multiplier_dh.get_fe().degree + 1);
     FEValues<1, 2>  fe_values(mapping,
-                              multiplier_dh.get_fe(),
-                              quadrature,
-                              update_values | update_JxW_values);
+                             multiplier_dh.get_fe(),
+                             quadrature,
+                             update_values | update_JxW_values);
     std::vector<types::global_dof_index> indices(
       multiplier_dh.get_fe().n_dofs_per_cell());
     Vector<double> local(indices.size());
@@ -343,9 +343,9 @@ TEST(FiberReinforcedElastodynamicsValidation, MPI_FiveFieldFiberIDA)
   ida_parameters.correction_type_at_initial_time = "none";
   ida_parameters.correction_type_after_restart   = "none";
   Adapter    ida(time_parameters,
-                 ida_parameters,
-                 MPI_COMM_WORLD,
-                 solve_global_operator);
+              ida_parameters,
+              MPI_COMM_WORLD,
+              solve_global_operator);
   const auto matrix = ida.add(driver.matrix_problem(), "matrix");
   const auto fiber  = ida.add(driver.fiber_problem(), "fiber");
   const auto matrix_view =
@@ -366,8 +366,8 @@ TEST(FiberReinforcedElastodynamicsValidation, MPI_FiveFieldFiberIDA)
                                                  "matrix_velocity",
                                                  FEValuesExtractors::Vector(0));
   const auto fiber_velocity  = fiber_view.field(fiber.fields().velocity,
-                                                "fiber_velocity",
-                                                FEValuesExtractors::Vector(0));
+                                               "fiber_velocity",
+                                               FEValuesExtractors::Vector(0));
   const auto multiplier =
     multiplier_view.field("velocity_multiplier", FEValuesExtractors::Vector(0));
 #  ifdef IMMERSX_WEAK_TERM_TESTING

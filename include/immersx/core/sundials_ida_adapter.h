@@ -53,9 +53,9 @@ namespace ImmersX
                                                    GlobalVectorType &,
                                                    double)>;
     using OutputFunction      = std::function<void(const double,
-                                                   const GlobalVectorType &,
-                                                   const GlobalVectorType &,
-                                                   const unsigned int)>;
+                                              const GlobalVectorType &,
+                                              const GlobalVectorType &,
+                                              const unsigned int)>;
     using ConsistentInitialConditionsFunction =
       std::function<void(const double, GlobalVectorType &, GlobalVectorType &)>;
     using RestartFunction =

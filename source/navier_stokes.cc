@@ -543,9 +543,9 @@ namespace ImmersX
     FullMatrix<double> cell_mass_matrix(dofs_per_cell, dofs_per_cell);
     Vector<double>     cell_rhs(dofs_per_cell);
 
-    std::vector<Vector<double>>      rhs_values(n_q_points,
-                                                Vector<double>(spacedim + 1));
-    std::vector<Tensor<1, spacedim>> phi_u(dofs_per_cell);
+    std::vector<Vector<double>>               rhs_values(n_q_points,
+                                           Vector<double>(spacedim + 1));
+    std::vector<Tensor<1, spacedim>>          phi_u(dofs_per_cell);
     std::vector<SymmetricTensor<2, spacedim>> sym_grad_phi_u(dofs_per_cell);
     std::vector<double>                       div_phi_u(dofs_per_cell);
     std::vector<double>                       phi_p(dofs_per_cell);
@@ -675,13 +675,13 @@ namespace ImmersX
       block_operator<2, 2, BlockVectorType>({{{{A, Bt}}, {{B, Z}}}});
 
     SolverControl    velocity_control(par.inner_solver_max_steps,
-                                      par.inner_solver_tolerance,
-                                      false,
-                                      par.log_solver_iterations);
+                                   par.inner_solver_tolerance,
+                                   false,
+                                   par.log_solver_iterations);
     SolverControl    pressure_control(par.inner_solver_max_steps,
-                                      par.inner_solver_tolerance,
-                                      false,
-                                      par.log_solver_iterations);
+                                   par.inner_solver_tolerance,
+                                   false,
+                                   par.log_solver_iterations);
     SolverCG<Vector> velocity_solver(velocity_control);
     SolverCG<Vector> pressure_solver(pressure_control);
 
@@ -1045,17 +1045,17 @@ namespace ImmersX
     destination.reinit(owned_dofs_by_block[0], mpi_communicator);
     destination = 0.;
 
-    FEValues<dim, spacedim> fe_values(mapping_storage,
+    FEValues<dim, spacedim>              fe_values(mapping_storage,
                                       *fe,
                                       *quadrature,
                                       update_values | update_quadrature_points |
                                         update_JxW_values);
-    const unsigned int      dofs_per_cell = fe->n_dofs_per_cell();
-    const unsigned int      n_q_points    = quadrature->size();
-    Vector<double>          cell_rhs(dofs_per_cell);
-    std::vector<Vector<double>>      rhs_values(n_q_points,
-                                                Vector<double>(spacedim + 1));
-    std::vector<Tensor<1, spacedim>> phi_u(dofs_per_cell);
+    const unsigned int                   dofs_per_cell = fe->n_dofs_per_cell();
+    const unsigned int                   n_q_points    = quadrature->size();
+    Vector<double>                       cell_rhs(dofs_per_cell);
+    std::vector<Vector<double>>          rhs_values(n_q_points,
+                                           Vector<double>(spacedim + 1));
+    std::vector<Tensor<1, spacedim>>     phi_u(dofs_per_cell);
     std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
     std::vector<types::global_dof_index> velocity_indices;
     std::vector<double>                  velocity_values;
