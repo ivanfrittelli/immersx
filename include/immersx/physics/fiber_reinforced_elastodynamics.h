@@ -46,7 +46,9 @@ namespace ImmersX
     explicit FiberReinforcedElastodynamicsParameters(
       const std::string &subsection = "/Fiber Reinforced Elastodynamics/");
 
-    TimeParameters time_parameters;
+    TimeIntervalParameters time_parameters;
+    FixedStepParameters    fixed_step_parameters;
+    IDAParameters          ida_parameters;
 
     ElastodynamicsParameters<dim, dim> matrix_parameters;
     ElastodynamicsParameters<1, dim>   fiber_parameters;

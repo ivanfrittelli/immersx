@@ -407,11 +407,15 @@ namespace
       ParameterAcceptor::clear();
       flow_problem = std::make_unique<FlowProblem>(MPI_COMM_WORLD);
       reset_parameter_handler_to_root(ParameterAcceptor::prm);
-      flow_time = std::make_unique<TimeParameters>();
+      flow_time       = std::make_unique<TimeIntervalParameters>();
+      flow_fixed_step = std::make_unique<FixedStepParameters>();
+      flow_ida        = std::make_unique<IDAParameters>();
       reset_parameter_handler_to_root(ParameterAcceptor::prm);
       solid_parameters =
         std::make_unique<ElastodynamicsParameters<3>>("/Elastodynamics/",
-                                                      flow_time.get());
+                                                      flow_time.get(),
+                                                      flow_fixed_step.get(),
+                                                      flow_ida.get());
       reset_parameter_handler_to_root(ParameterAcceptor::prm);
       wall_lift = std::make_unique<WallObservable::Lift>(
         "/MetricFlowX vessel wall lift/");
@@ -423,26 +427,25 @@ namespace
       flow_problem->initialize_params(parameter_file);
 
       const Parameters par;
-      flow_time->initial_time      = 0.;
-      flow_time->final_time        = final_time;
-      flow_time->time_step         = final_time / n_steps;
-      flow_time->number_of_steps   = n_steps;
-      flow_time->initial_step_size = final_time / n_steps;
-      flow_time->minimum_step_size =
+      flow_time->initial_time          = 0.;
+      flow_time->final_time            = final_time;
+      flow_fixed_step->time_step       = final_time / n_steps;
+      flow_fixed_step->number_of_steps = n_steps;
+      flow_ida->initial_step_size      = final_time / n_steps;
+      flow_ida->minimum_step_size =
         std::getenv("IMMERSX_RUN_MMS_STUDIES") != nullptr ?
           final_time / n_steps :
           final_time * 1.e-6;
-      flow_time->maximum_order                 = 1;
-      flow_time->maximum_non_linear_iterations = 3;
+      flow_ida->maximum_order                 = 1;
+      flow_ida->maximum_non_linear_iterations = 3;
       const bool study = std::getenv("IMMERSX_RUN_MMS_STUDIES") != nullptr;
       // The registered smoke gate is deliberately inexpensive.  Opt-in
       // studies use solver tolerances suitable for measuring discretization
       // errors; their rates remain diagnostic until the production linear
       // solver scales on the finest coupled levels.
-      flow_time->absolute_tolerance = study ? 1.e-8 : 1.e-2;
-      flow_time->relative_tolerance = study ? 1.e-8 : 1.e-2;
-      flow_time->ls_norm_factor     = 1.e-2;
-      flow_time->output_frequency   = 0;
+      flow_ida->absolute_tolerance = study ? 1.e-8 : 1.e-2;
+      flow_ida->relative_tolerance = study ? 1.e-8 : 1.e-2;
+      flow_ida->ls_norm_factor     = 1.e-2;
 
       solid_parameters->initial_refinement =
         solid_level == numbers::invalid_unsigned_int ? flow_level : solid_level;
@@ -492,7 +495,8 @@ namespace
       solid_problem->set_initial_conditions();
       flow_problem->setup();
 
-      adapter = std::make_unique<Adapter>(*flow_time, MPI_COMM_WORLD);
+      adapter =
+        std::make_unique<Adapter>(*flow_time, *flow_ida, MPI_COMM_WORLD);
       solid_fields.emplace(adapter->add(*solid_problem, "elastodynamics"));
       flow_fields.emplace(
         adapter->add(metric_flow_x(*flow_problem), "blood-flow"));
@@ -836,7 +840,9 @@ namespace
     }
 
     std::unique_ptr<FlowProblem>                 flow_problem;
-    std::unique_ptr<TimeParameters>              flow_time;
+    std::unique_ptr<TimeIntervalParameters>      flow_time;
+    std::unique_ptr<FixedStepParameters>         flow_fixed_step;
+    std::unique_ptr<IDAParameters>               flow_ida;
     std::unique_ptr<ElastodynamicsParameters<3>> solid_parameters;
     std::unique_ptr<SolidProblem>                solid_problem;
     std::unique_ptr<WallObservable::Lift>        wall_lift;

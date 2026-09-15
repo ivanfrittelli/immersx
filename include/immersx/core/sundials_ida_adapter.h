@@ -62,12 +62,14 @@ namespace ImmersX
       std::function<bool(const double, GlobalVectorType &, GlobalVectorType &)>;
     using AdditionalData =
       typename dealii::SUNDIALS::IDA<GlobalVectorType>::AdditionalData;
-    IDAAdapter(const TimeParameters &time_parameters,
-               const MPI_Comm        communicator,
-               LinearSolveFunction   solve = {})
+    IDAAdapter(const TimeIntervalParameters &time_parameters,
+               const IDAParameters          &ida_parameters,
+               const MPI_Comm                communicator,
+               LinearSolveFunction           solve = {})
       : composition_(communicator)
       , solve_(std::move(solve))
       , time_parameters_(time_parameters)
+      , ida_parameters_(ida_parameters)
       , pcout(std::cout,
               dealii::Utilities::MPI::this_mpi_process(communicator) == 0)
     {}
@@ -77,7 +79,8 @@ namespace ImmersX
     {
       if (!additional_data_.has_value())
         additional_data_ =
-          time_parameters_.template ida_parameters<GlobalVectorType>();
+          ida_parameters_.template additional_data<GlobalVectorType>(
+            time_parameters_);
       return *additional_data_;
     }
 
@@ -533,7 +536,8 @@ namespace ImmersX
 
     Composition                                              composition_;
     LinearSolveFunction                                      solve_;
-    const TimeParameters                                    &time_parameters_;
+    const TimeIntervalParameters                            &time_parameters_;
+    const IDAParameters                                     &ida_parameters_;
     mutable std::optional<AdditionalData>                    additional_data_;
     std::unique_ptr<dealii::SUNDIALS::IDA<GlobalVectorType>> ida_;
     mutable dealii::ConditionalOStream                       pcout;

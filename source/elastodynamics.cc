@@ -90,18 +90,35 @@ namespace ImmersX
 
   template <int dim, int spacedim>
   ElastodynamicsParameters<dim, spacedim>::ElastodynamicsParameters(
-    const std::string &subsection,
-    TimeParameters    *shared_time_parameters)
+    const std::string      &subsection,
+    TimeIntervalParameters *shared_time_parameters,
+    FixedStepParameters    *shared_fixed_step_parameters,
+    IDAParameters          *shared_ida_parameters)
     : ParameterAcceptor(normalize_elastodynamics_subsection(subsection))
     , owned_time_parameters(
         shared_time_parameters == nullptr ?
-          std::make_unique<TimeParameters>(
+          std::make_unique<TimeIntervalParameters>(
             normalize_elastodynamics_subsection(subsection) +
-            "Time parameters/") :
+            "Time interval/") :
+          nullptr)
+    , owned_fixed_step_parameters(
+        shared_fixed_step_parameters == nullptr ?
+          std::make_unique<FixedStepParameters>(
+            normalize_elastodynamics_subsection(subsection) + "Fixed step/") :
+          nullptr)
+    , owned_ida_parameters(
+        shared_ida_parameters == nullptr ?
+          std::make_unique<IDAParameters>(
+            normalize_elastodynamics_subsection(subsection) + "IDA/") :
           nullptr)
     , time_parameters(shared_time_parameters != nullptr ?
                         *shared_time_parameters :
                         *owned_time_parameters)
+    , fixed_step_parameters(shared_fixed_step_parameters != nullptr ?
+                              *shared_fixed_step_parameters :
+                              *owned_fixed_step_parameters)
+    , ida_parameters(shared_ida_parameters != nullptr ? *shared_ida_parameters :
+                                                        *owned_ida_parameters)
     , body_force(normalize_elastodynamics_subsection(subsection) +
                    "Functions/Body force",
                  spacedim)
@@ -984,10 +1001,10 @@ namespace ImmersX
   void
   ElastodynamicsSolver<dim, spacedim>::advance_one_timestep()
   {
-    AssertThrow(par.time_parameters.time_step > 0.,
+    AssertThrow(par.fixed_step_parameters.time_step > 0.,
                 ExcMessage("Cannot advance with a non-positive time step."));
 
-    advance_one_timestep(par.time_parameters.time_step);
+    advance_one_timestep(par.fixed_step_parameters.time_step);
   }
 
 
@@ -1103,30 +1120,32 @@ namespace ImmersX
     assemble_operators();
     set_initial_conditions();
 
-    if (par.time_parameters.output_frequency > 0)
+    if (par.time_parameters.output_time_interval > 0)
       output_results();
 
-    unsigned int n_steps = par.time_parameters.number_of_steps;
+    double next_output_time = par.time_parameters.initial_time +
+                              par.time_parameters.output_time_interval;
+    unsigned int n_steps = par.fixed_step_parameters.number_of_steps;
     if (n_steps == 0 &&
         par.time_parameters.final_time > par.time_parameters.initial_time)
       n_steps = static_cast<unsigned int>(std::ceil(
         (par.time_parameters.final_time - par.time_parameters.initial_time) /
-        par.time_parameters.time_step));
+        par.fixed_step_parameters.time_step));
 
     for (unsigned int step = 0; step < n_steps; ++step)
       {
-        double dt = par.time_parameters.time_step;
-        if (par.time_parameters.number_of_steps == 0)
+        double dt = par.fixed_step_parameters.time_step;
+        if (par.fixed_step_parameters.number_of_steps == 0)
           dt =
             std::min(dt, par.time_parameters.final_time - current_time_storage);
         advance_one_timestep(dt);
-        if ((par.time_parameters.output_frequency == 0 &&
-             step + 1 == n_steps) ||
-            (par.time_parameters.output_frequency > 0 &&
-             (time_step_number_storage % par.time_parameters.output_frequency ==
-                0 ||
-              step + 1 == n_steps)))
-          output_results();
+        if (par.time_parameters.output_time_interval > 0 &&
+            (current_time_storage >= next_output_time || step + 1 == n_steps))
+          {
+            output_results();
+            while (next_output_time <= current_time_storage)
+              next_output_time += par.time_parameters.output_time_interval;
+          }
       }
   }
 

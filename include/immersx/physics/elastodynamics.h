@@ -79,13 +79,17 @@ namespace ImmersX
   class ElastodynamicsParameters : public dealii::ParameterAcceptor
   {
   private:
-    std::unique_ptr<TimeParameters> owned_time_parameters;
+    std::unique_ptr<TimeIntervalParameters> owned_time_parameters;
+    std::unique_ptr<FixedStepParameters>    owned_fixed_step_parameters;
+    std::unique_ptr<IDAParameters>          owned_ida_parameters;
 
   public:
     /** Construct the parameters below a configurable subsection. */
     explicit ElastodynamicsParameters(
-      const std::string &subsection             = "/Elastodynamics/",
-      TimeParameters    *shared_time_parameters = nullptr);
+      const std::string      &subsection                   = "/Elastodynamics/",
+      TimeIntervalParameters *shared_time_parameters       = nullptr,
+      FixedStepParameters    *shared_fixed_step_parameters = nullptr,
+      IDAParameters          *shared_ida_parameters        = nullptr);
 
     std::string  output_directory    = ".";
     std::string  output_name         = "elastodynamics";
@@ -105,8 +109,12 @@ namespace ImmersX
     double damping_shear = 0.0;
     double damping_bulk  = 0.0;
 
-    /** Canonical time-integration parameters used by this Problem. */
-    TimeParameters &time_parameters;
+    /** Solver-independent interval used by this Problem. */
+    TimeIntervalParameters &time_parameters;
+    /** Fixed-step policy used by the standalone driver. */
+    FixedStepParameters &fixed_step_parameters;
+    /** IDA policy used by the adapter application. */
+    IDAParameters &ida_parameters;
 
     /** Body force and boundary data.
      *

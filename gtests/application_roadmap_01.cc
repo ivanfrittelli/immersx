@@ -650,22 +650,28 @@ check_p3g2_mixed_dimensional_fiber(const std::string &output_prefix)
 {
   ParameterAcceptor::clear();
 
-  TimeParameters time_parameters("/P3 G2 time/");
-  time_parameters.initial_time                  = 0.;
-  time_parameters.final_time                    = 1.e-4;
-  time_parameters.time_step                     = 1.e-4;
-  time_parameters.number_of_steps               = 1;
-  time_parameters.output_frequency              = 1;
-  time_parameters.initial_step_size             = 1.e-4;
-  time_parameters.absolute_tolerance            = 1.e-8;
-  time_parameters.relative_tolerance            = 1.e-8;
-  time_parameters.maximum_order                 = 1;
-  time_parameters.maximum_non_linear_iterations = 20;
+  TimeIntervalParameters time_parameters("/P3 G2 time/");
+  FixedStepParameters    fixed_step_parameters;
+  IDAParameters          ida_parameters;
+  time_parameters.initial_time                 = 0.;
+  time_parameters.final_time                   = 1.e-4;
+  fixed_step_parameters.time_step              = 1.e-4;
+  fixed_step_parameters.number_of_steps        = 1;
+  time_parameters.output_time_interval         = 1.e-4;
+  ida_parameters.initial_step_size             = 1.e-4;
+  ida_parameters.absolute_tolerance            = 1.e-8;
+  ida_parameters.relative_tolerance            = 1.e-8;
+  ida_parameters.maximum_order                 = 1;
+  ida_parameters.maximum_non_linear_iterations = 20;
 
   ElastodynamicsParameters<2>    matrix_parameters("/P3 G2 matrix/",
-                                                &time_parameters);
+                                                &time_parameters,
+                                                &fixed_step_parameters,
+                                                &ida_parameters);
   ElastodynamicsParameters<1, 2> fiber_parameters("/P3 G2 fiber/",
-                                                  &time_parameters);
+                                                  &time_parameters,
+                                                  &fixed_step_parameters,
+                                                  &ida_parameters);
 
   matrix_parameters.output_directory = TestPaths::output_directory(
     "application-roadmap/" + output_prefix + "/matrix");
@@ -710,7 +716,7 @@ check_p3g2_mixed_dimensional_fiber(const std::string &output_prefix)
   using FieldVector  = ImmersXLA::MPI::Vector;
   using GlobalVector = ImmersXLA::MPI::BlockVector;
   using Adapter      = IDAAdapter<FieldVector, GlobalVector>;
-  Adapter    adapter(time_parameters, MPI_COMM_WORLD);
+  Adapter    adapter(time_parameters, ida_parameters, MPI_COMM_WORLD);
   const auto matrix_fields = adapter.add(matrix_problem, "matrix");
   const auto fiber_fields  = adapter.add(fiber_problem, "fiber");
 

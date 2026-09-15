@@ -42,7 +42,9 @@ namespace
     problem.assemble_system();
 
 #ifdef DEAL_II_WITH_SUNDIALS
-    Adapter    adapter(parameters.time_parameters, MPI_COMM_WORLD);
+    Adapter    adapter(parameters.time_parameters,
+                    parameters.ida_parameters,
+                    MPI_COMM_WORLD);
     const auto fields = adapter.add(problem, "navier-stokes");
     adapter.set_output_step(
       [&problem, &adapter, fields, &parameters](const double        time,
@@ -53,12 +55,8 @@ namespace
                              adapter.field(state, fields.fields().pressure),
                              time,
                              step);
-        if ((parameters.time_parameters.output_frequency == 0 &&
-             (step == 0 || time >= parameters.time_parameters.final_time)) ||
-            (parameters.time_parameters.output_frequency > 0 &&
-             (step % parameters.time_parameters.output_frequency == 0 ||
-              time >= parameters.time_parameters.final_time)))
-          problem.output_results();
+        problem.output_results();
+        (void)step;
         (void)state_dot;
       });
 

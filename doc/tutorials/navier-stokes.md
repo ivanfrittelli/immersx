@@ -116,8 +116,8 @@ CCACHE_DIR=/Users/heltai/.ccache cmake --build build --target navier_stokes_debu
 
 The Release executable is named `./build/navier_stokes`. The example writes a
 time series under `build/test_output/tutorial-output/navier-stokes-2d` and
-emits output every second time step. Set `Output frequency = 0` to disable
-visualization output. For a
+emits visualization output every `Output time interval` units of physical
+time. For a
 parallel run, use two MPI ranks:
 
 ```bash
@@ -144,8 +144,9 @@ The top-level `Navier-Stokes` subsection contains:
 - `Grid generation`: generator, arguments, and distributed triangulation;
 - `Physical properties`: `Density`, `Viscosity`, and the explicit-convection
   toggle;
-- `Time parameters`: initial/final time and either a fixed or number-of-steps
-  policy, together with the output cadence;
+- `Time interval`: initial/final time and the physical output interval;
+- `Fixed step`: either a fixed timestep or a prescribed number of steps;
+  policy;
 - `Right hand side`, `Dirichlet boundary conditions`, and `Initial condition`:
   parsed vector functions with `dim + 1` components, where the last component
   is pressure and is ignored for velocity data;

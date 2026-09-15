@@ -3,13 +3,19 @@ set space dimension = 3
 set reduced dimension = 1
 set cross section dimension = 2
 
-subsection Time parameters
+subsection Time interval
   set Initial time       = 0.0
   set Final time         = 0.0
+  set Output time interval = 1e-6
+end
+
+subsection Fixed step
   set Time step          = 1e-6
   set Number of time steps = 1
-  set Output frequency   = 1
   set Policy             = number_of_steps
+end
+
+subsection IDA
   subsection Error control
     set Absolute error tolerance = 1e-6
     set Relative error tolerance = 1e-5

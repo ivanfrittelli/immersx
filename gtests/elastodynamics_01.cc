@@ -32,11 +32,11 @@ namespace
     par.output_directory =
       (std::filesystem::temp_directory_path() / "immersx_elastodynamics")
         .string();
-    par.time_parameters.output_frequency = 0;
-    par.initial_refinement               = 1;
-    par.time_parameters.time_step        = 1.e-2;
-    par.time_parameters.final_time       = 1.e-2;
-    par.time_parameters.number_of_steps  = 1;
+    par.time_parameters.output_time_interval  = 1.e-2;
+    par.initial_refinement                    = 1;
+    par.fixed_step_parameters.time_step       = 1.e-2;
+    par.time_parameters.final_time            = 1.e-2;
+    par.fixed_step_parameters.number_of_steps = 1;
     par.solver_control.set_reduction(1.e-11);
     par.solver_control.set_tolerance(1.e-12);
   }
@@ -99,11 +99,15 @@ TEST(Elastodynamics, ParameterParsing)
         set Damping shear = 0.2
         set Damping bulk  = 0.1
       end
-      subsection Time parameters
+      subsection Time interval
         set Initial time       = 0.0
         set Final time         = 0.01
+        set Output time interval = 0.01
+      end
+      subsection Fixed step
         set Time step          = 0.01
         set Number of time steps = 1
+        set Policy               = number_of_steps
       end
       subsection Functions
         subsection Body force
@@ -119,7 +123,7 @@ TEST(Elastodynamics, ParameterParsing)
   EXPECT_DOUBLE_EQ(parameters.lame_mu, 3.0);
   EXPECT_DOUBLE_EQ(parameters.lame_lambda, 4.0);
   EXPECT_DOUBLE_EQ(parameters.damping_shear, 0.2);
-  EXPECT_EQ(parameters.time_parameters.number_of_steps, 1u);
+  EXPECT_EQ(parameters.fixed_step_parameters.number_of_steps, 1u);
   EXPECT_DOUBLE_EQ(parameters.body_force.value(Point<2>(), 0), 1.0);
   EXPECT_DOUBLE_EQ(parameters.body_force.value(Point<2>(), 1), 2.0);
 }
@@ -247,10 +251,13 @@ TEST(Elastodynamics, IDAResidualAndJacobianOracle)
   using FieldVector  = ElastodynamicsSolver<2>::VectorType;
   using GlobalVector = LA::MPI::BlockVector;
   using Adapter      = IDAAdapter<FieldVector, GlobalVector>;
-  TimeParameters time_parameters;
+  TimeIntervalParameters time_parameters;
+  FixedStepParameters    fixed_step_parameters;
+  IDAParameters          ida_parameters;
   time_parameters.initial_time = 0.;
   time_parameters.final_time   = 0.01;
   Adapter    ida(time_parameters,
+              ida_parameters,
               MPI_COMM_WORLD,
               [](const dealii::LinearOperator<GlobalVector> &,
                  const GlobalVector &,
@@ -363,7 +370,7 @@ TEST(ElastodynamicsValidation, NontrivialTransient)
   ParameterAcceptor::clear();
   ElastodynamicsParameters<2> parameters;
   configure_small_problem(parameters);
-  parameters.time_parameters.number_of_steps = 1;
+  parameters.fixed_step_parameters.number_of_steps = 1;
   initialize_configured_parameters();
 
   ElastodynamicsSolver<2> problem(parameters);
@@ -393,8 +400,8 @@ TEST(ElastodynamicsValidation, ThreeDimensionalSmoke)
   ParameterAcceptor::clear();
   ElastodynamicsParameters<3> parameters;
   configure_small_problem(parameters);
-  parameters.initial_refinement              = 0;
-  parameters.time_parameters.number_of_steps = 1;
+  parameters.initial_refinement                    = 0;
+  parameters.fixed_step_parameters.number_of_steps = 1;
   initialize_configured_parameters();
 
   ElastodynamicsSolver<3> problem(parameters);
@@ -415,8 +422,8 @@ TEST(ElastodynamicsValidation, MPI_Transient)
   ParameterAcceptor::clear();
   ElastodynamicsParameters<2> parameters;
   configure_small_problem(parameters);
-  parameters.initial_refinement              = 1;
-  parameters.time_parameters.number_of_steps = 1;
+  parameters.initial_refinement                    = 1;
+  parameters.fixed_step_parameters.number_of_steps = 1;
   initialize_configured_parameters();
 
   ElastodynamicsSolver<2> problem(parameters);

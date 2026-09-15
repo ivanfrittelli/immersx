@@ -45,19 +45,19 @@ namespace
     for (unsigned int boundary = 0; boundary < 2 * dim; ++boundary)
       parameters.dirichlet_ids.insert(boundary);
 
-    parameters.time_parameters.output_frequency = 0;
-    parameters.time_parameters.initial_time     = 0.;
-    parameters.time_parameters.final_time       = 1.e-3;
-    parameters.time_parameters.time_step        = 1.e-3;
-    parameters.time_parameters.number_of_steps  = 1;
+    parameters.time_parameters.output_time_interval  = 1.e-3;
+    parameters.time_parameters.initial_time          = 0.;
+    parameters.time_parameters.final_time            = 1.e-3;
+    parameters.fixed_step_parameters.time_step       = 1.e-3;
+    parameters.fixed_step_parameters.number_of_steps = 1;
     parameters.solver_control.set_max_steps(500);
     parameters.solver_control.set_reduction(1.e-14);
     parameters.solver_control.set_tolerance(1.e-14);
 #ifdef DEAL_II_WITH_SUNDIALS
-    parameters.time_parameters.initial_step_size  = 1.e-4;
-    parameters.time_parameters.absolute_tolerance = 1.e-8;
-    parameters.time_parameters.relative_tolerance = 1.e-8;
-    parameters.time_parameters.maximum_order      = 1;
+    parameters.ida_parameters.initial_step_size  = 1.e-4;
+    parameters.ida_parameters.absolute_tolerance = 1.e-8;
+    parameters.ida_parameters.relative_tolerance = 1.e-8;
+    parameters.ida_parameters.maximum_order      = 1;
 #endif
   }
 
@@ -252,7 +252,9 @@ namespace
     using GlobalVector = ImmersX::ImmersXLA::MPI::BlockVector;
     using Adapter      = ImmersX::IDAAdapter<FieldVector, GlobalVector>;
 
-    Adapter    adapter(parameters.time_parameters, MPI_COMM_WORLD);
+    Adapter    adapter(parameters.time_parameters,
+                    parameters.ida_parameters,
+                    MPI_COMM_WORLD);
     const auto fields = adapter.add(problem, "elastodynamics");
     EXPECT_TRUE(fields.fields().displacement.is_valid());
     EXPECT_TRUE(fields.fields().velocity.is_valid());

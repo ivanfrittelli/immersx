@@ -15,8 +15,11 @@ state derivative, and supplies accepted-state output when native data must be
 updated:
 
 ```cpp
-TimeParameters time_parameters;
-IDAAdapter<FieldVector, GlobalVector> ida(time_parameters, MPI_COMM_WORLD);
+TimeIntervalParameters time_interval;
+IDAParameters ida_parameters;
+IDAAdapter<FieldVector, GlobalVector> ida(time_interval,
+                                         ida_parameters,
+                                         MPI_COMM_WORLD);
 auto fields = ida.add(problem, "solid");
 
 ida.set_output_step(
@@ -53,10 +56,11 @@ Problems provide the two derivative operators separately. The adapter can
 use its built-in GMRES/FGMRES path or an application-supplied linear solve
 callback.
 
-`TimeParameters` owns the initial and final times, step policy, output
-frequency, IDA running parameters, error tolerances, differential/algebraic
-error handling, and initial-condition correction settings. It converts these
-values to deal.II's IDA `AdditionalData` through `ida_parameters()`.
+`TimeIntervalParameters` owns the initial and final times and the physical
+output interval. `IDAParameters` owns IDA's adaptive-step controls, error
+tolerances, differential/algebraic error handling, and initial-condition
+correction settings. The adapter combines the two into deal.II's IDA
+`AdditionalData`; the generic fixed-step controls are not used by IDA.
 
 The optional
 `set_compute_consistent_initial_conditions(time, state, state_dot)` callback

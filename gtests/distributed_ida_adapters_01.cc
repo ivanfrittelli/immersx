@@ -101,24 +101,26 @@ namespace
 
 TEST(DistributedIDA, ApplicationConsistentInitialConditions) // NOLINT
 {
-  TimeParameters time_parameters;
-  time_parameters.initial_time                      = 0.;
-  time_parameters.final_time                        = 0.01;
-  time_parameters.time_step                         = 0.01;
-  time_parameters.output_frequency                  = 1;
-  time_parameters.initial_step_size                 = 0.01;
-  time_parameters.maximum_order                     = 1;
-  time_parameters.minimum_step_size                 = 1.e-6;
-  time_parameters.maximum_non_linear_iterations     = 10;
-  time_parameters.absolute_tolerance                = 1.e-6;
-  time_parameters.relative_tolerance                = 1.e-5;
-  time_parameters.maximum_non_linear_iterations_ic  = 5;
-  time_parameters.ls_norm_factor                    = 0.;
-  time_parameters.correction_type_at_initial_time   = "use_y_diff";
-  time_parameters.correction_type_after_restart     = "none";
-  time_parameters.ignore_algebraic_terms_for_errors = false;
+  TimeIntervalParameters time_parameters;
+  FixedStepParameters    fixed_step_parameters;
+  IDAParameters          ida_parameters;
+  time_parameters.initial_time                     = 0.;
+  time_parameters.final_time                       = 0.01;
+  fixed_step_parameters.time_step                  = 0.01;
+  time_parameters.output_time_interval             = 0.01;
+  ida_parameters.initial_step_size                 = 0.01;
+  ida_parameters.maximum_order                     = 1;
+  ida_parameters.minimum_step_size                 = 1.e-6;
+  ida_parameters.maximum_non_linear_iterations     = 10;
+  ida_parameters.absolute_tolerance                = 1.e-6;
+  ida_parameters.relative_tolerance                = 1.e-5;
+  ida_parameters.maximum_non_linear_iterations_ic  = 5;
+  ida_parameters.ls_norm_factor                    = 0.;
+  ida_parameters.correction_type_at_initial_time   = "use_y_diff";
+  ida_parameters.correction_type_after_restart     = "none";
+  ida_parameters.ignore_algebraic_terms_for_errors = false;
 
-  Adapter      adapter(time_parameters, MPI_COMM_SELF);
+  Adapter      adapter(time_parameters, ida_parameters, MPI_COMM_SELF);
   bool         initial_output     = false;
   bool         early_residual     = false;
   unsigned int callback_count     = 0;
@@ -158,24 +160,26 @@ TEST(DistributedIDA, ApplicationConsistentInitialConditions) // NOLINT
 
 TEST(DistributedIDA, IDACalcICFallbackRemainsAvailable) // NOLINT
 {
-  TimeParameters time_parameters;
-  time_parameters.initial_time                      = 0.;
-  time_parameters.final_time                        = 0.01;
-  time_parameters.time_step                         = 0.01;
-  time_parameters.output_frequency                  = 1;
-  time_parameters.initial_step_size                 = 0.01;
-  time_parameters.maximum_order                     = 1;
-  time_parameters.minimum_step_size                 = 1.e-6;
-  time_parameters.maximum_non_linear_iterations     = 10;
-  time_parameters.absolute_tolerance                = 1.e-6;
-  time_parameters.relative_tolerance                = 1.e-5;
-  time_parameters.maximum_non_linear_iterations_ic  = 5;
-  time_parameters.ls_norm_factor                    = 0.;
-  time_parameters.correction_type_at_initial_time   = "use_y_diff";
-  time_parameters.correction_type_after_restart     = "none";
-  time_parameters.ignore_algebraic_terms_for_errors = false;
+  TimeIntervalParameters time_parameters;
+  FixedStepParameters    fixed_step_parameters;
+  IDAParameters          ida_parameters;
+  time_parameters.initial_time                     = 0.;
+  time_parameters.final_time                       = 0.01;
+  fixed_step_parameters.time_step                  = 0.01;
+  time_parameters.output_time_interval             = 0.01;
+  ida_parameters.initial_step_size                 = 0.01;
+  ida_parameters.maximum_order                     = 1;
+  ida_parameters.minimum_step_size                 = 1.e-6;
+  ida_parameters.maximum_non_linear_iterations     = 10;
+  ida_parameters.absolute_tolerance                = 1.e-6;
+  ida_parameters.relative_tolerance                = 1.e-5;
+  ida_parameters.maximum_non_linear_iterations_ic  = 5;
+  ida_parameters.ls_norm_factor                    = 0.;
+  ida_parameters.correction_type_at_initial_time   = "use_y_diff";
+  ida_parameters.correction_type_after_restart     = "none";
+  ida_parameters.ignore_algebraic_terms_for_errors = false;
 
-  Adapter    adapter(time_parameters, MPI_COMM_SELF);
+  Adapter    adapter(time_parameters, ida_parameters, MPI_COMM_SELF);
   const auto field                     = add_identity_field(adapter, 2);
   auto       state                     = adapter.make_state();
   auto       dot                       = adapter.make_state();
@@ -196,21 +200,23 @@ TEST(DistributedIDA, IDACalcICFallbackRemainsAvailable) // NOLINT
 TEST(DistributedIDA,
      ApplicationConsistentInitialConditionFailurePropagates) // NOLINT
 {
-  TimeParameters time_parameters;
-  time_parameters.final_time                       = 0.01;
-  time_parameters.time_step                        = 0.01;
-  time_parameters.output_frequency                 = 1;
-  time_parameters.initial_step_size                = 1.e-2;
-  time_parameters.maximum_order                    = 5;
-  time_parameters.minimum_step_size                = 1.e-6;
-  time_parameters.maximum_non_linear_iterations    = 10;
-  time_parameters.absolute_tolerance               = 1.e-6;
-  time_parameters.relative_tolerance               = 1.e-5;
-  time_parameters.maximum_non_linear_iterations_ic = 5;
-  time_parameters.ls_norm_factor                   = 0.;
-  time_parameters.correction_type_at_initial_time  = "use_y_diff";
+  TimeIntervalParameters time_parameters;
+  FixedStepParameters    fixed_step_parameters;
+  IDAParameters          ida_parameters;
+  time_parameters.final_time                      = 0.01;
+  fixed_step_parameters.time_step                 = 0.01;
+  time_parameters.output_time_interval            = 0.01;
+  ida_parameters.initial_step_size                = 1.e-2;
+  ida_parameters.maximum_order                    = 5;
+  ida_parameters.minimum_step_size                = 1.e-6;
+  ida_parameters.maximum_non_linear_iterations    = 10;
+  ida_parameters.absolute_tolerance               = 1.e-6;
+  ida_parameters.relative_tolerance               = 1.e-5;
+  ida_parameters.maximum_non_linear_iterations_ic = 5;
+  ida_parameters.ls_norm_factor                   = 0.;
+  ida_parameters.correction_type_at_initial_time  = "use_y_diff";
 
-  Adapter adapter(time_parameters, MPI_COMM_SELF);
+  Adapter adapter(time_parameters, ida_parameters, MPI_COMM_SELF);
   auto    field = add_identity_field(adapter, 2);
   auto    state = adapter.make_state();
   auto    dot   = adapter.make_state();
@@ -225,24 +231,26 @@ TEST(DistributedIDA,
 
 TEST(DistributedIDA, NoneLeavesInitialConditionsUntouched) // NOLINT
 {
-  TimeParameters time_parameters;
-  time_parameters.initial_time                      = 0.;
-  time_parameters.final_time                        = 0.01;
-  time_parameters.time_step                         = 0.01;
-  time_parameters.output_frequency                  = 1;
-  time_parameters.initial_step_size                 = 0.01;
-  time_parameters.maximum_order                     = 1;
-  time_parameters.minimum_step_size                 = 1.e-6;
-  time_parameters.maximum_non_linear_iterations     = 10;
-  time_parameters.absolute_tolerance                = 1.e-6;
-  time_parameters.relative_tolerance                = 1.e-5;
-  time_parameters.maximum_non_linear_iterations_ic  = 5;
-  time_parameters.ls_norm_factor                    = 0.;
-  time_parameters.correction_type_at_initial_time   = "none";
-  time_parameters.correction_type_after_restart     = "none";
-  time_parameters.ignore_algebraic_terms_for_errors = false;
+  TimeIntervalParameters time_parameters;
+  FixedStepParameters    fixed_step_parameters;
+  IDAParameters          ida_parameters;
+  time_parameters.initial_time                     = 0.;
+  time_parameters.final_time                       = 0.01;
+  fixed_step_parameters.time_step                  = 0.01;
+  time_parameters.output_time_interval             = 0.01;
+  ida_parameters.initial_step_size                 = 0.01;
+  ida_parameters.maximum_order                     = 1;
+  ida_parameters.minimum_step_size                 = 1.e-6;
+  ida_parameters.maximum_non_linear_iterations     = 10;
+  ida_parameters.absolute_tolerance                = 1.e-6;
+  ida_parameters.relative_tolerance                = 1.e-5;
+  ida_parameters.maximum_non_linear_iterations_ic  = 5;
+  ida_parameters.ls_norm_factor                    = 0.;
+  ida_parameters.correction_type_at_initial_time   = "none";
+  ida_parameters.correction_type_after_restart     = "none";
+  ida_parameters.ignore_algebraic_terms_for_errors = false;
 
-  Adapter    adapter(time_parameters, MPI_COMM_SELF);
+  Adapter    adapter(time_parameters, ida_parameters, MPI_COMM_SELF);
   const auto field                     = add_identity_field(adapter, 2);
   auto       state                     = adapter.make_state();
   auto       dot                       = adapter.make_state();
@@ -267,24 +275,26 @@ TEST(DistributedIDA, NoneLeavesInitialConditionsUntouched) // NOLINT
 
 TEST(DistributedIDA, RestartCallbackPrecedesResetAndCanResizeState) // NOLINT
 {
-  TimeParameters time_parameters;
-  time_parameters.initial_time                      = 0.;
-  time_parameters.final_time                        = 0.02;
-  time_parameters.time_step                         = 0.01;
-  time_parameters.output_frequency                  = 1;
-  time_parameters.initial_step_size                 = 0.01;
-  time_parameters.maximum_order                     = 1;
-  time_parameters.minimum_step_size                 = 1.e-6;
-  time_parameters.maximum_non_linear_iterations     = 10;
-  time_parameters.absolute_tolerance                = 1.e-6;
-  time_parameters.relative_tolerance                = 1.e-5;
-  time_parameters.maximum_non_linear_iterations_ic  = 5;
-  time_parameters.ls_norm_factor                    = 0.;
-  time_parameters.correction_type_at_initial_time   = "use_y_diff";
-  time_parameters.correction_type_after_restart     = "use_y_diff";
-  time_parameters.ignore_algebraic_terms_for_errors = false;
+  TimeIntervalParameters time_parameters;
+  FixedStepParameters    fixed_step_parameters;
+  IDAParameters          ida_parameters;
+  time_parameters.initial_time                     = 0.;
+  time_parameters.final_time                       = 0.02;
+  fixed_step_parameters.time_step                  = 0.01;
+  time_parameters.output_time_interval             = 0.01;
+  ida_parameters.initial_step_size                 = 0.01;
+  ida_parameters.maximum_order                     = 1;
+  ida_parameters.minimum_step_size                 = 1.e-6;
+  ida_parameters.maximum_non_linear_iterations     = 10;
+  ida_parameters.absolute_tolerance                = 1.e-6;
+  ida_parameters.relative_tolerance                = 1.e-5;
+  ida_parameters.maximum_non_linear_iterations_ic  = 5;
+  ida_parameters.ls_norm_factor                    = 0.;
+  ida_parameters.correction_type_at_initial_time   = "use_y_diff";
+  ida_parameters.correction_type_after_restart     = "use_y_diff";
+  ida_parameters.ignore_algebraic_terms_for_errors = false;
 
-  Adapter      adapter(time_parameters, MPI_COMM_SELF);
+  Adapter      adapter(time_parameters, ida_parameters, MPI_COMM_SELF);
   const auto   field            = add_identity_field(adapter, 2);
   auto         state            = adapter.make_state();
   auto         dot              = adapter.make_state();
@@ -321,10 +331,13 @@ TEST(DistributedIDA, MPI_StateDependentJacobianOwnsEvaluationState) // NOLINT
   using GlobalVector = ImmersXLA::MPI::BlockVector;
   using Adapter      = IDAAdapter<FieldVector, GlobalVector>;
 
-  TimeParameters time_parameters;
+  TimeIntervalParameters time_parameters;
+  FixedStepParameters    fixed_step_parameters;
+  IDAParameters          ida_parameters;
   time_parameters.initial_time = 0.;
   time_parameters.final_time   = 0.01;
   Adapter adapter(time_parameters,
+                  ida_parameters,
                   MPI_COMM_WORLD,
                   [](const dealii::LinearOperator<GlobalVector> &,
                      const GlobalVector &,
@@ -389,8 +402,11 @@ TEST(DistributedIDA, MPI_MixedFieldDifferentialComponents) // NOLINT
 
   ASSERT_EQ(dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD), 2u);
 
-  TimeParameters time_parameters;
-  Adapter        adapter(time_parameters,
+  TimeIntervalParameters time_parameters;
+  FixedStepParameters    fixed_step_parameters;
+  IDAParameters          ida_parameters;
+  Adapter                adapter(time_parameters,
+                  ida_parameters,
                   MPI_COMM_WORLD,
                   [](const dealii::LinearOperator<GlobalVector> &,
                      const GlobalVector &,

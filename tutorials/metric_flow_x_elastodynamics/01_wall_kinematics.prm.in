@@ -1,9 +1,12 @@
-subsection Time parameters
+subsection Time interval
   set Initial time = 0.0
   set Final time = 0.0
+  set Output time interval = 1e-6
+end
+subsection Fixed step
   set Time step = 1e-6
   set Number of time steps = 1
-  set Output frequency = 0
+  set Policy = number_of_steps
 end
 
 subsection Elastodynamics
