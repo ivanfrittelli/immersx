@@ -32,6 +32,7 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
 set(_main_target immersx)
+set(DEAL_II_DIR "/home/unipi/i.frittelli/Desktop/dealii-9.7.1/build")
 
 # Public headers are rooted at include/immersx. Keep the source list
 # recursive so new public subdirectories are visible to targets and installs.
