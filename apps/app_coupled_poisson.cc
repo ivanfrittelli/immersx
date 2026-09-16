@@ -54,6 +54,7 @@ namespace
     PoissonParameters<2>                bulk_parameters;
     PoissonParameters<1, 2> embedded_parameters("/Embedded Poisson/");
     LinearSolverParameters  adapter_parameters;
+    adapter_parameters.preconditioner = LinearPreconditioner::augmented_lagrangian;
     initialize_parameters(parameter_file);
 
     bulk_parameters.output_directory = application_parameters.output_directory;
@@ -117,8 +118,21 @@ namespace
                       weak_term(value(embedded_field), test(multiplier)));
     const auto coupling = adapter.add(constraint, "continuity");
 
+    //      const auto operator_view = composition_.jacobian(0., state, nullptr, 0.);
+
     auto state = adapter.make_state();
-    adapter.solve(state);
+    //Usual way 
+    //adapter.solve(state);
+
+    //My way
+    auto rhs = adapter.make_state();
+    adapter.evaluate_residual(state, rhs);
+    rhs *= -1;
+
+    auto system_matrix = adapter.jacobian(state);
+    SolverControl control(1000, 1e-12);
+    dealii::SolverGMRES<GlobalVector> solver(control);
+    solver.solve(system_matrix, state, rhs, PreconditionIdentity());
 
     bulk_problem.set_solution(adapter.field(state, bulk.fields().solution));
     embedded_problem.set_solution(
