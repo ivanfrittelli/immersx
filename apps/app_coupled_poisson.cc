@@ -206,6 +206,7 @@ namespace
     //Transfer
     CoupledTransfer coupled_transfer;
     const auto & dh = bulk_problem.dof_handler();
+    
     coupled_transfer.build(dh, embedded_problem.dof_handler());
     const auto & tria = bulk_problem.triangulation();
 

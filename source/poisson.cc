@@ -310,6 +310,10 @@ namespace ImmersX
     AssertThrow(fe != nullptr, ExcMessage("setup_fe() must be called first."));
 
     dh.distribute_dofs(*fe);
+
+    if constexpr (dim != 1)
+      dh.distribute_mg_dofs();
+    
     owned_dofs    = dh.locally_owned_dofs();
     relevant_dofs = DoFTools::extract_locally_relevant_dofs(dh);
 
